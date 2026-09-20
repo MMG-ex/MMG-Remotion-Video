@@ -8,6 +8,7 @@ on:
     paths:
       - "src/**"
       - "public/**"
+      - "assets/**"
       - "package.json"
       - "remotion.config.ts"
       - ".github/workflows/render-video.yml"
@@ -21,7 +22,7 @@ concurrency:
 
 jobs:
   render:
-    name: Render Visualizer MP4
+    name: Render Ozluyorum MP4
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -42,35 +43,44 @@ jobs:
       - name: FFmpeg araçlarını kur
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg curl
 
-      - name: Şarkı varlıklarını hazırla
+      - name: Sinematik görselleri hazırla
         run: |
           test -f assets/son-yaprak-assets.zip
           unzip -o assets/son-yaprak-assets.zip -d .
-          test -s public/audio/son-yaprak-master-320.mp3
           test -s public/images/01-window.jpg
+          test -s public/images/12-dawn.jpg
+
+      - name: Özlüyorum ses dosyasını özgün adıyla indir
+        run: |
+          mkdir -p public/audio
+          curl --fail --location --retry 4 --retry-delay 5 \
+            "https://cdn.openart.ai/openart-uploads/production/attachment-transfers/f81400d9be2b11bbe0576720c3c49e191f5caa85b418b2a54d089bc9745d2b3f.wav" \
+            --output "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
+          test -s "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
+          ffprobe -v error -show_entries format=duration -of csv=p=0 "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
 
       - name: Remotion videosunu render et
         run: |
           mkdir -p out
-          npx remotion render src/index.ts Visualizer out/MMG-Remotion-Video.mp4 --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
+          npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum (Üni).mp4" --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
 
       - name: Çıktıyı doğrula
         run: |
-          test -s out/MMG-Remotion-Video.mp4
-          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
-          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/MMG-Remotion-Video.mp4)
+          test -s "out/Manus - Özlüyorum (Üni).mp4"
+          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
+          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
+          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
           echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION"
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
-          awk "BEGIN { exit !($DURATION >= 227.0 && $DURATION <= 227.2) }"
+          awk "BEGIN { exit !($DURATION >= 183.8 && $DURATION <= 184.3) }"
 
       - name: MP4 dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: MMG-Remotion-Video
-          path: out/MMG-Remotion-Video.mp4
+          name: Manus-Ozluyorum-Uni
+          path: "out/Manus - Özlüyorum (Üni).mp4"
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
