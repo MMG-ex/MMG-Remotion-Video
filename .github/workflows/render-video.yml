@@ -68,14 +68,21 @@ jobs:
 
       - name: Çıktıyı doğrula
         run: |
-          test -s "out/Manus - Özlüyorum (Üni).mp4"
-          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
-          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "out/Manus - Özlüyorum (Üni).mp4")
-          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION"
+          OUTPUT="out/Manus - Özlüyorum (Üni).mp4"
+          test -s "$OUTPUT"
+          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT")
+          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT")
+          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUTPUT")
+          FILE_SIZE=$(stat -c%s "$OUTPUT")
+          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION bytes=$FILE_SIZE"
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
-          awk "BEGIN { exit !($DURATION >= 183.8 && $DURATION <= 184.3) }"
+          test "$FILE_SIZE" -gt 1000000
+          python3 - "$DURATION" <<'PY'
+          import sys
+          duration = float(sys.argv[1])
+          assert 183.5 <= duration <= 184.8, f"unexpected duration: {duration}"
+          PY
 
       - name: MP4 dosyasını yükle
         uses: actions/upload-artifact@v4
