@@ -39,6 +39,11 @@ jobs:
       - name: Paketleri kur
         run: npm install --no-audit --no-fund
 
+      - name: FFmpeg araçlarını kur
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
       - name: Şarkı varlıklarını hazırla
         run: |
           test -f assets/son-yaprak-assets.zip
@@ -53,8 +58,14 @@ jobs:
 
       - name: Çıktıyı doğrula
         run: |
-          ffprobe -v error -show_entries format=duration:stream=codec_name -of json out/MMG-Remotion-Video.mp4
           test -s out/MMG-Remotion-Video.mp4
+          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
+          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
+          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/MMG-Remotion-Video.mp4)
+          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION"
+          test "$VIDEO_CODEC" = "h264"
+          test "$AUDIO_CODEC" = "aac"
+          awk "BEGIN { exit !($DURATION >= 227.0 && $DURATION <= 227.2) }"
 
       - name: MP4 dosyasını yükle
         uses: actions/upload-artifact@v4
