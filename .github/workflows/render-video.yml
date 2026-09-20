@@ -67,27 +67,31 @@ jobs:
           npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum (Üni).mp4" --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
 
       - name: Çıktıyı doğrula
+        id: validate
+        continue-on-error: true
         run: |
           OUTPUT="out/Manus - Özlüyorum (Üni).mp4"
           test -s "$OUTPUT"
-          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT")
-          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT")
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUTPUT")
-          FILE_SIZE=$(stat -c%s "$OUTPUT")
+          VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n')"
+          AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n')"
+          DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUTPUT" | tr -d '\r\n')"
+          FILE_SIZE="$(stat -c%s "$OUTPUT")"
           echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION bytes=$FILE_SIZE"
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
           test "$FILE_SIZE" -gt 1000000
-          python3 - "$DURATION" <<'PY'
-          import sys
-          duration = float(sys.argv[1])
-          assert 183.5 <= duration <= 184.8, f"unexpected duration: {duration}"
-          PY
+          python3 -c 'import sys; d=float(sys.argv[1]); assert 183.5 <= d <= 184.8, f"unexpected duration: {d}"' "$DURATION"
 
       - name: MP4 dosyasını yükle
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Manus-Ozluyorum-Uni
           path: "out/Manus - Özlüyorum (Üni).mp4"
           if-no-files-found: error
           retention-days: 7
+
+      - name: Doğrulama sonucunu uygula
+        if: always()
+        run: |
+          test "${{ steps.validate.outcome }}" = "success"
