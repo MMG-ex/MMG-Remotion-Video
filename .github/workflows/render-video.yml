@@ -1,13 +1,14 @@
-name: MMG Remotion MP4 Render
+name: Son Yaprak Remotion MP4 Render
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - son-yaprak-final-20260921
     paths:
       - "src/**"
       - "public/**"
+      - "assets/**"
       - "package.json"
       - "remotion.config.ts"
       - ".github/workflows/render-video.yml"
@@ -16,12 +17,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: mmg-remotion-render-${{ github.ref }}
+  group: son-yaprak-render-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   render:
-    name: Render Visualizer MP4
+    name: Render Son Yaprak Final MP4
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -44,33 +45,39 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg
 
-      - name: Şarkı varlıklarını hazırla
+      - name: Son Yaprak varlıklarını hazırla
         run: |
           test -f assets/son-yaprak-assets.zip
           unzip -o assets/son-yaprak-assets.zip -d .
           test -s public/audio/son-yaprak-master-320.mp3
           test -s public/images/01-window.jpg
+          test -s public/images/12-dawn.jpg
 
       - name: Remotion videosunu render et
         run: |
           mkdir -p out
-          npx remotion render src/index.ts Visualizer out/MMG-Remotion-Video.mp4 --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
+          npx remotion render src/index.ts Visualizer out/Son_Yaprak_Final_1080p.mp4 --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
 
       - name: Çıktıyı doğrula
         run: |
-          test -s out/MMG-Remotion-Video.mp4
-          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
-          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 out/MMG-Remotion-Video.mp4)
-          DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/MMG-Remotion-Video.mp4)
-          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION"
+          set -euo pipefail
+          test -s out/Son_Yaprak_Final_1080p.mp4
+          VIDEO_CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 out/Son_Yaprak_Final_1080p.mp4 | tr -d '\r\n')
+          AUDIO_CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 out/Son_Yaprak_Final_1080p.mp4 | tr -d '\r\n')
+          DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 out/Son_Yaprak_Final_1080p.mp4 | tr -d '\r\n')
+          WIDTH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 out/Son_Yaprak_Final_1080p.mp4 | tr -d '\r\n')
+          HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 out/Son_Yaprak_Final_1080p.mp4 | tr -d '\r\n')
+          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION size=${WIDTH}x${HEIGHT}"
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
-          awk "BEGIN { exit !($DURATION >= 227.0 && $DURATION <= 227.2) }"
+          test "$WIDTH" = "1920"
+          test "$HEIGHT" = "1080"
+          awk "BEGIN { exit !($DURATION >= 226.8 && $DURATION <= 227.4) }"
 
       - name: MP4 dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: MMG-Remotion-Video
-          path: out/MMG-Remotion-Video.mp4
+          name: Son-Yaprak-Final-1080p
+          path: out/Son_Yaprak_Final_1080p.mp4
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
