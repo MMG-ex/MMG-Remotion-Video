@@ -1,0 +1,102 @@
+name: MMG Wan ZeroGPU Motion Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wan-zero-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wan-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare source frame
+        run: |
+          unzip -o assets/son-yaprak-assets.zip -d .
+          test -s public/images/01-window.jpg
+          mkdir -p out
+
+      - name: Install Gradio client
+        run: |
+          python -m pip install --upgrade pip
+          pip install "gradio_client>=1.13,<2"
+
+      - name: Generate real moving Wan 2.2 clip
+        run: |
+          cat > /tmp/wan_test.py <<'PY'
+          from gradio_client import Client, handle_file
+          import json, os, shutil
+
+          space = "r3gm/wan2-2-fp8da-aoti-preview"
+          client = Client(space)
+          try:
+              api = client.view_api(return_format="dict")
+              print("API_INFO=" + json.dumps(api, ensure_ascii=False)[:12000])
+          except Exception as e:
+              print("VIEW_API_WARNING", repr(e))
+
+          prompt = (
+              "cinematic nostalgic university campus seen through a rain-covered window, "
+              "a young adult student slowly walks away in the background, coat and hair moving naturally "
+              "in the wind, raindrops sliding on glass, trees and distant students moving, realistic human motion, "
+              "subtle emotional body language, slow cinematic dolly forward, shallow depth of field, "
+              "photorealistic, natural lighting, melancholic memory, 35mm film look, no text, no subtitles"
+          )
+          negative = (
+              "static image, frozen pose, still frame, slideshow, distorted anatomy, extra limbs, duplicate people, "
+              "warped face, flicker, jitter, low quality, text, subtitles, watermark"
+          )
+
+          result = client.predict(
+              handle_file("public/images/01-window.jpg"),
+              prompt,
+              4,
+              negative,
+              3.5,
+              1,
+              1,
+              42,
+              False,
+              api_name="/generate_video",
+          )
+          print("RESULT=", result)
+
+          candidates = result if isinstance(result, (list, tuple)) else [result]
+          video_path = None
+          for item in candidates:
+              if isinstance(item, str) and item.lower().endswith(".mp4") and os.path.exists(item):
+                  video_path = item
+                  break
+              if isinstance(item, dict):
+                  p = item.get("path") or item.get("filepath") or item.get("video")
+                  if isinstance(p, str) and os.path.exists(p):
+                      video_path = p
+                      break
+          if not video_path:
+              raise RuntimeError(f"No local MP4 path in result: {result!r}")
+          shutil.copy2(video_path, "out/ozluyorum-motion-test.mp4")
+          PY
+          python /tmp/wan_test.py
+
+      - name: Verify movement clip
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          test -s out/ozluyorum-motion-test.mp4
+          ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 out/ozluyorum-motion-test.mp4
+
+      - name: Upload test clip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ozluyorum-wan-motion-test
+          path: out/ozluyorum-motion-test.mp4
+          if-no-files-found: error
+          retention-days: 7
