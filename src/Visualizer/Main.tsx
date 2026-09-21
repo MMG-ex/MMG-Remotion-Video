@@ -39,7 +39,7 @@ const shots: Shot[] = [
 ];
 
 export const Visualizer: React.FC = () => {
-  const {durationInFrames} = useVideoConfig();
+  const {durationInFrames: totalDurationInFrames} = useVideoConfig();
 
   return (
     <AbsoluteFill style={{backgroundColor: "#000"}}>
@@ -47,14 +47,14 @@ export const Visualizer: React.FC = () => {
 
       {shots.map((shot) => {
         const from = f(shot.start);
-        const end = Math.min(f(shot.end), durationInFrames);
-        const durationInFrames = Math.max(1, end - from);
+        const end = Math.min(f(shot.end), totalDurationInFrames);
+        const shotFrames = Math.max(1, end - from);
 
         return (
-          <Sequence key={shot.name} from={from} durationInFrames={durationInFrames} name={shot.name}>
+          <Sequence key={shot.name} from={from} durationInFrames={shotFrames} name={shot.name}>
             <MovingVideoShot
               src={shot.src}
-              durationInFrames={durationInFrames}
+              durationInFrames={shotFrames}
               playbackRate={shot.playbackRate}
               brightness={shot.brightness}
               saturation={shot.saturation}
