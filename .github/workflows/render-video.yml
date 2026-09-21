@@ -62,16 +62,27 @@ jobs:
           fetch_clip () {
             ID="$1"
             NAME="$2"
+            FALLBACK="${3:-}"
             SRC="/tmp/ozluyorum-video/${NAME}-source.mp4"
             OUT="public/video/${NAME}.mp4"
 
             echo "=== Pexels video ${ID} -> ${NAME} ==="
-            curl --fail --location --retry 4 --retry-delay 4 --retry-all-errors \
+            if ! curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors \
               --connect-timeout 20 --max-time 300 \
               -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36" \
               -e "https://www.pexels.com/" \
               "https://www.pexels.com/download/video/${ID}/" \
               --output "${SRC}"
+            then
+              rm -f "${SRC}"
+              if [ -n "${FALLBACK}" ] && [ -s "public/video/${FALLBACK}.mp4" ]; then
+                echo "[WARN] ${ID} indirilemedi; hareketli yedek kullaniliyor: ${FALLBACK}"
+                cp "public/video/${FALLBACK}.mp4" "${OUT}"
+                return 0
+              fi
+              echo "[ERROR] ${ID} indirilemedi ve yedek yok."
+              return 1
+            fi
 
             test -s "${SRC}"
             ffprobe -v error -show_entries format=duration -of csv=p=0 "${SRC}"
@@ -86,17 +97,23 @@ jobs:
           }
 
           fetch_clip 35213341 "01-rain-window"
-          fetch_clip 38684062 "02-campus-walk"
-          fetch_clip 4872859  "03-notebook"
-          fetch_clip 8500475  "04-classroom"
-          fetch_clip 7971029  "05-campus-friends"
-          fetch_clip 6798784  "06-old-photos"
-          fetch_clip 31384926 "07-sunset-friends"
-          fetch_clip 37415607 "08-train-departure"
-          fetch_clip 7252614  "09-campus-leave"
+          fetch_clip 38684062 "02-campus-walk" "01-rain-window"
+          fetch_clip 4872859  "03-notebook" "02-campus-walk"
+          fetch_clip 8500475  "04-classroom" "03-notebook"
+          fetch_clip 7971029  "05-campus-friends" "02-campus-walk"
+          fetch_clip 6798784  "06-old-photos" "03-notebook"
+          fetch_clip 31384926 "07-sunset-friends" "05-campus-friends"
+          fetch_clip 6308503  "08-train-departure" "02-campus-walk"
+          fetch_clip 7252614  "09-campus-leave" "05-campus-friends"
 
-          echo "Hazirlanan video dosyalari:"
+          echo "Hazirlanan gerçek hareketli video dosyalari:"
           ls -lh public/video
+
+          COUNT="$(find public/video -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')"
+          test "$COUNT" -eq 9
+
+      - name: TypeScript kontrolü
+        run: npx tsc --noEmit
 
       - name: Remotion hareketli klibi render et
         run: |
