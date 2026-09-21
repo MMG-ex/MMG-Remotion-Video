@@ -1,31 +1,74 @@
 import React from "react";
 import {AbsoluteFill, Sequence, staticFile, useVideoConfig} from "remotion";
 import {Audio} from "@remotion/media";
-import {CinematicShot} from "../Cinematic/CinematicShot";
+import {MovingVideoShot} from "../Cinematic/MovingVideoShot";
 import {OpeningTitles} from "../Cinematic/OpeningTitles";
 import {SON_YAPRAK} from "../data/son-yaprak";
 
 const f = (seconds: number) => Math.round(seconds * SON_YAPRAK.fps);
 
+type Shot = {
+  start: number;
+  end: number;
+  src: string;
+  playbackRate?: number;
+  brightness?: number;
+  saturation?: number;
+  contrast?: number;
+  zoomFrom?: number;
+  zoomTo?: number;
+  name: string;
+};
+
+const shots: Shot[] = [
+  {start: 0, end: 15.8, src: "video/01-rain-window.mp4", playbackRate: 0.86, brightness: 0.72, saturation: 0.72, contrast: 1.12, name: "01 · Yağmurlu cam · geçmişe açılan giriş"},
+  {start: 15.0, end: 32.2, src: "video/02-campus-walk.mp4", playbackRate: 0.92, brightness: 0.92, saturation: 0.82, contrast: 1.06, name: "02 · Üniversite kampüsü · yürüyen öğrenciler"},
+  {start: 31.4, end: 42.8, src: "video/03-notebook.mp4", playbackRate: 0.88, brightness: 0.88, saturation: 0.76, contrast: 1.08, name: "03 · Defter · yarım kalan cümleler"},
+  {start: 42.0, end: 57.2, src: "video/04-classroom.mp4", playbackRate: 0.82, brightness: 0.90, saturation: 0.74, contrast: 1.08, name: "04 · Boş sınıf · sessiz hatıralar"},
+  {start: 56.4, end: 76.0, src: "video/05-campus-friends.mp4", playbackRate: 0.94, brightness: 0.96, saturation: 0.88, contrast: 1.04, name: "05 · Arkadaşlar · kampüs günleri"},
+  {start: 75.2, end: 90.1, src: "video/06-old-photos.mp4", playbackRate: 0.82, brightness: 0.86, saturation: 0.66, contrast: 1.10, name: "06 · Eski fotoğraflar · özlem"},
+  {start: 89.3, end: 104.1, src: "video/07-sunset-friends.mp4", playbackRate: 0.88, brightness: 0.90, saturation: 0.84, contrast: 1.06, name: "07 · Günbatımı · birlikte yürüyüş"},
+  {start: 103.3, end: 119.3, src: "video/03-notebook.mp4", playbackRate: 0.72, brightness: 0.82, saturation: 0.68, contrast: 1.10, zoomFrom: 1.08, zoomTo: 1.02, name: "08 · Hatıra defteri · ikinci bakış"},
+  {start: 118.5, end: 130.8, src: "video/08-train-departure.mp4", playbackRate: 0.90, brightness: 0.82, saturation: 0.76, contrast: 1.10, name: "09 · Tren · ayrılık"},
+  {start: 130.0, end: 141.3, src: "video/04-classroom.mp4", playbackRate: 0.68, brightness: 0.78, saturation: 0.62, contrast: 1.12, zoomFrom: 1.06, zoomTo: 1.02, name: "10 · Boş sınıf · geri dönüş"},
+  {start: 140.5, end: 150.8, src: "video/09-campus-leave.mp4", playbackRate: 0.90, brightness: 0.80, saturation: 0.72, contrast: 1.12, name: "11 · Kampüsten çıkış · yollar ayrılıyor"},
+  {start: 150.0, end: 159.8, src: "video/08-train-departure.mp4", playbackRate: 1.0, brightness: 0.76, saturation: 0.70, contrast: 1.13, zoomFrom: 1.03, zoomTo: 1.07, name: "12 · Final nakarat · tren uzaklaşıyor"},
+  {start: 159.0, end: 169.8, src: "video/06-old-photos.mp4", playbackRate: 0.72, brightness: 0.82, saturation: 0.62, contrast: 1.12, zoomFrom: 1.06, zoomTo: 1.02, name: "13 · Eski fotoğraflar · son kez"},
+  {start: 169.0, end: 176.8, src: "video/07-sunset-friends.mp4", playbackRate: 0.72, brightness: 0.88, saturation: 0.80, contrast: 1.08, name: "14 · Kıyı · geçmişe bakış"},
+  {start: 176.0, end: SON_YAPRAK.durationSeconds, src: "video/02-campus-walk.mp4", playbackRate: 0.78, brightness: 1.0, saturation: 0.88, contrast: 1.03, zoomFrom: 1.03, zoomTo: 1.0, name: "15 · Çıkış · hayat devam ediyor"},
+];
+
 export const Visualizer: React.FC = () => {
   const {durationInFrames} = useVideoConfig();
-  return <AbsoluteFill style={{backgroundColor: "#000"}}>
-    <Audio src={staticFile(SON_YAPRAK.audio)} />
-    <CinematicShot durationInFrames={f(15.2)} src="images/01-window.jpg" camera="dolly-in" name="01 · Giriş · Kampüse dönüş" warmth={0.15} />
-    <CinematicShot from={f(14.4)} durationInFrames={f(17.1)} src="images/02-street.jpg" camera="follow" name="02 · Kıta · Boş kampüs yolu" />
-    <CinematicShot from={f(30.6)} durationInFrames={f(11.6)} src="images/03-key.jpg" camera="dolly-in" name="03 · Kıta · Eski anahtar" warmth={0.35} />
-    <CinematicShot from={f(41.3)} durationInFrames={f(15.2)} src="images/04-door.jpg" camera="pan-right" name="04 · Yükseliş · Boş koridor" warmth={0.45} />
-    <CinematicShot from={f(55.6)} durationInFrames={f(19.8)} src="images/05-bus.jpg" camera="pan-left" name="05 · Nakarat · Gece otobüsü" warmth={0.25} />
-    <CinematicShot from={f(74.5)} durationInFrames={f(15)} src="images/06-puddle.jpg" camera="crane-up" name="06 · Nakarat · Eski fotoğraflar" />
-    <CinematicShot from={f(88.6)} durationInFrames={f(14.9)} src="images/07-pier.jpg" camera="orbit-right" name="07 · Nakarat · Kıyı anıları" />
-    <CinematicShot from={f(102.6)} durationInFrames={f(16.1)} src="images/08-daisy.jpg" camera="dolly-out" name="08 · Ara · Hatıra defteri" warmth={0.25} rain={false} />
-    <CinematicShot from={f(117.8)} durationInFrames={f(12.2)} src="images/09-suitcase.jpg" camera="dolly-in" name="09 · Kıta · Yarım kalan vedalar" warmth={0.5} rain={false} />
-    <CinematicShot from={f(129.1)} durationInFrames={f(11.4)} src="images/11-room.jpg" camera="follow" name="10 · Kıta · Boş sınıf" warmth={0.35} rain={false} />
-    <CinematicShot from={f(139.6)} durationInFrames={f(10.4)} src="images/02-street.jpg" camera="orbit-left" name="11 · Yükseliş · Kampüsten çıkış" />
-    <CinematicShot from={f(149.1)} durationInFrames={f(9.9)} src="images/10-train.jpg" camera="pan-right" name="12 · Final · Peronda ayrılık" warmth={0.15} />
-    <CinematicShot from={f(158.1)} durationInFrames={f(10.9)} src="images/11-room.jpg" camera="dolly-out" name="13 · Final · Boş odada anılar" warmth={0.3} rain={false} />
-    <CinematicShot from={f(168.1)} durationInFrames={f(7.9)} src="images/07-pier.jpg" camera="crane-up" name="14 · Final · Geçmişe son bakış" />
-    <CinematicShot from={f(175.1)} durationInFrames={Math.max(1, durationInFrames - f(175.1))} src="images/12-dawn.jpg" camera="dolly-in" name="15 · Çıkış · Yeni gün" warmth={0.8} rain={false} fadeOutFrames={f(2.1)} />
-    <Sequence durationInFrames={f(8.2)} name="Açılış jeneriği"><OpeningTitles /></Sequence>
-  </AbsoluteFill>;
+
+  return (
+    <AbsoluteFill style={{backgroundColor: "#000"}}>
+      <Audio src={staticFile(SON_YAPRAK.audio)} />
+
+      {shots.map((shot) => {
+        const from = f(shot.start);
+        const end = Math.min(f(shot.end), durationInFrames);
+        const durationInFrames = Math.max(1, end - from);
+
+        return (
+          <Sequence key={shot.name} from={from} durationInFrames={durationInFrames} name={shot.name}>
+            <MovingVideoShot
+              src={shot.src}
+              durationInFrames={durationInFrames}
+              playbackRate={shot.playbackRate}
+              brightness={shot.brightness}
+              saturation={shot.saturation}
+              contrast={shot.contrast}
+              zoomFrom={shot.zoomFrom}
+              zoomTo={shot.zoomTo}
+            />
+          </Sequence>
+        );
+      })}
+
+      <Sequence durationInFrames={f(7.4)} name="Açılış jeneriği">
+        <OpeningTitles />
+      </Sequence>
+    </AbsoluteFill>
+  );
 };
