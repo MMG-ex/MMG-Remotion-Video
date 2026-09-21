@@ -2,8 +2,8 @@ export type CameraMove = "dolly-in" | "dolly-out" | "pan-left" | "pan-right" | "
 
 export const SON_YAPRAK = {
   title: "SON YAPRAK",
-  artist: "AIYLIN MÜZİK",
-  credits: "Söz & Müzik · AIYLIN MÜZİK",
+  artist: "",
+  credits: "Söz: M. Murat Güvenoğlu  •  Müzik: Suno.com",
   audio: "audio/son-yaprak-master-320.mp3",
   durationSeconds: 227.056327,
   fps: 30,
