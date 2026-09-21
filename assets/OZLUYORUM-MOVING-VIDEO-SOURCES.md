@@ -9,7 +9,8 @@ Bu klipteki hareketli stok görüntüler Pexels üzerinde "Free to use" olarak y
 5. Kampüste arkadaşlar: https://www.pexels.com/video/friends-walking-together-7971029/
 6. Eski fotoğraflar masada: https://www.pexels.com/video/a-person-putting-the-old-photos-on-a-table-6798784/
 7. Günbatımında arkadaşlar: https://www.pexels.com/video/friends-walking-on-beach-at-sunset-31384926/
-8. İstanbul'da istasyondan ayrılan tren: https://www.pexels.com/video/train-departing-station-in-istanbul-view-37415607/
+8. Tren / istasyon: https://www.pexels.com/video/people-at-the-train-station-6308503/
 9. Üniversite binasından ayrılan öğrenciler: https://www.pexels.com/video/man-and-a-woman-walking-on-different-directions-7252614/
 
 Kurgu: şarkı sesi ana sestir. Stok videoların kendi sesleri kullanılmaz.
+Bir kaynak geçici olarak indirilemezse iş akışı yine gerçek hareketli bir yedek klip kullanır; JPG/zoom-pan geri dönüşü yoktur.
