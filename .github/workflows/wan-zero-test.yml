@@ -33,16 +33,9 @@ jobs:
         run: |
           cat > /tmp/wan_test.py <<'PY'
           from gradio_client import Client, handle_file
-          import json, os, shutil
+          import os, shutil
 
-          space = "r3gm/wan2-2-fp8da-aoti-preview"
-          client = Client(space)
-          try:
-              api = client.view_api(return_format="dict")
-              print("API_INFO=" + json.dumps(api, ensure_ascii=False)[:12000])
-          except Exception as e:
-              print("VIEW_API_WARNING", repr(e))
-
+          client = Client("r3gm/wan2-2-fp8da-aoti-preview")
           prompt = (
               "cinematic nostalgic university campus seen through a rain-covered window, "
               "a young adult student slowly walks away in the background, coat and hair moving naturally "
@@ -57,6 +50,7 @@ jobs:
 
           result = client.predict(
               handle_file("public/images/01-window.jpg"),
+              None,
               prompt,
               4,
               negative,
@@ -76,10 +70,16 @@ jobs:
                   video_path = item
                   break
               if isinstance(item, dict):
-                  p = item.get("path") or item.get("filepath") or item.get("video")
+                  p = item.get("path") or item.get("filepath")
                   if isinstance(p, str) and os.path.exists(p):
                       video_path = p
                       break
+                  v = item.get("video")
+                  if isinstance(v, dict):
+                      p = v.get("path")
+                      if isinstance(p, str) and os.path.exists(p):
+                          video_path = p
+                          break
           if not video_path:
               raise RuntimeError(f"No local MP4 path in result: {result!r}")
           shutil.copy2(video_path, "out/ozluyorum-motion-test.mp4")
