@@ -22,9 +22,9 @@ concurrency:
 
 jobs:
   render:
-    name: Render Ozluyorum AI HAREKETLI MP4
+    name: Render Ozluyorum HAREKETLI MP4
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Projeyi indir
@@ -40,14 +40,12 @@ jobs:
       - name: Paketleri kur
         run: npm install --no-audit --no-fund
 
-      - name: Video araçlarını kur
+      - name: FFmpeg araçlarını kur
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg curl
-          python -m pip install --upgrade pip
-          pip install "gradio_client>=1.13,<2"
 
-      - name: Özlüyorum ses dosyasını indir
+      - name: Özlüyorum ses dosyasını özgün adıyla indir
         run: |
           mkdir -p public/audio
           curl --fail --location --retry 4 --retry-delay 5 --retry-all-errors \
@@ -56,138 +54,63 @@ jobs:
           test -s "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
           ffprobe -v error -show_entries format=duration -of csv=p=0 "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
 
-      - name: OpenArt Özlüyorum ana karelerini indir
+      - name: Gerçek hareketli video sahnelerini indir ve 1080p hazırla
         run: |
           set -euo pipefail
-          mkdir -p public/keyframes
-          curl --fail --location --retry 4 --retry-delay 4 \
-            "https://cdn.openart.ai/watermarked_images/kmV2thA1UiX0PZkaAuea/thumbnail_06df6e34_1790012544135.webp" \
-            -o public/keyframes/01-rain-campus.webp
-          curl --fail --location --retry 4 --retry-delay 4 \
-            "https://cdn.openart.ai/watermarked_images/kmV2thA1UiX0PZkaAuea/thumbnail_20ddfcc8_1790012523587.webp" \
-            -o public/keyframes/02-corridor.webp
-          curl --fail --location --retry 4 --retry-delay 4 \
-            "https://cdn.openart.ai/watermarked_images/kmV2thA1UiX0PZkaAuea/thumbnail_ac32e09b_1790012525455.webp" \
-            -o public/keyframes/03-night-bus.webp
-          curl --fail --location --retry 4 --retry-delay 4 \
-            "https://cdn.openart.ai/watermarked_images/kmV2thA1UiX0PZkaAuea/thumbnail_e9f4430c_1790012531641.webp" \
-            -o public/keyframes/04-dawn-campus.webp
-          test -s public/keyframes/01-rain-campus.webp
-          test -s public/keyframes/02-corridor.webp
-          test -s public/keyframes/03-night-bus.webp
-          test -s public/keyframes/04-dawn-campus.webp
+          mkdir -p public/video /tmp/ozluyorum-video
 
-      - name: Wan 2.2 ile gerçek hareketli AI sahneleri üret
-        run: |
-          set -euo pipefail
-          mkdir -p public/video /tmp/wan
-          cat > /tmp/generate_ozluyorum.py <<'PY'
-          from gradio_client import Client, handle_file
-          import os, shutil, time
+          fetch_clip () {
+            ID="$1"
+            NAME="$2"
+            FALLBACK="${3:-}"
+            SRC="/tmp/ozluyorum-video/${NAME}-source.mp4"
+            OUT="public/video/${NAME}.mp4"
 
-          client = Client("r3gm/wan2-2-fp8da-aoti-preview")
+            echo "=== Pexels video ${ID} -> ${NAME} ==="
+            if ! curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors \
+              --connect-timeout 20 --max-time 300 \
+              -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36" \
+              -e "https://www.pexels.com/" \
+              "https://www.pexels.com/download/video/${ID}/" \
+              --output "${SRC}"
+            then
+              rm -f "${SRC}"
+              if [ -n "${FALLBACK}" ] && [ -s "public/video/${FALLBACK}.mp4" ]; then
+                echo "[WARN] ${ID} indirilemedi; hareketli yedek kullaniliyor: ${FALLBACK}"
+                cp "public/video/${FALLBACK}.mp4" "${OUT}"
+                return 0
+              fi
+              echo "[ERROR] ${ID} indirilemedi ve yedek yok."
+              return 1
+            fi
 
-          negative = (
-              "static image, frozen pose, still frame, slideshow, motionless, distorted anatomy, extra limbs, "
-              "duplicate people, warped face, deformed hands, flicker, jitter, camera shake, low quality, "
-              "text, subtitles, watermark, logo"
-          )
+            test -s "${SRC}"
+            ffprobe -v error -show_entries format=duration -of csv=p=0 "${SRC}"
 
-          scenes = [
-              ("public/keyframes/01-rain-campus.webp", "01-rain-window.mp4",
-               "Rainy Turkish university campus seen through a wet window. Real raindrops slide down the glass, distant university students walk naturally with umbrellas, coats and trees move in the wind, reflections shimmer on wet pavement, slow cinematic dolly forward, melancholic nostalgic memory, realistic human motion, photorealistic 35mm film.", 101),
-              ("public/keyframes/01-rain-campus.webp", "02-campus-walk.mp4",
-               "Bring this university campus fully alive. Several young adult students cross the wet campus naturally, umbrellas sway, jackets and hair move in the wind, puddles ripple, tree branches move, one student walks away from camera, smooth cinematic tracking movement, emotional nostalgia, photorealistic.", 202),
-              ("public/keyframes/02-corridor.webp", "03-notebook.mp4",
-               "A quiet university corridor after classes. Warm light slowly changes across the floor, an open classroom door moves slightly, papers and curtain edges stir from a soft draft, a distant student briefly crosses the far end of the corridor, slow push-in camera, memory-like melancholic atmosphere, realistic motion, photorealistic.", 303),
-              ("public/keyframes/02-corridor.webp", "04-classroom.mp4",
-               "Empty university classroom and corridor coming alive subtly: fluorescent lights hum and shift, sunlight moves across desks, a backpack strap sways, a distant student walks past the doorway, slow handheld cinematic drift but stable, bittersweet university memories, realistic natural movement, photorealistic.", 404),
-              ("public/keyframes/01-rain-campus.webp", "05-campus-friends.mp4",
-               "Nostalgic university friends on a rainy campus. Small groups of young adult students walk together in the distance, laugh and gesture naturally, umbrellas and coats move, trees sway, wet pavement reflects moving figures, cinematic lateral camera move, tender sense of missing old friends, photorealistic.", 505),
-              ("public/keyframes/02-corridor.webp", "06-old-photos.mp4",
-               "Slow emotional memory sequence in an old university corridor: gentle camera glide past empty classroom doors and desks, dust motes and warm light move, a distant anonymous student silhouette crosses briefly then disappears, subtle depth parallax, wistful longing, realistic cinematic motion, photorealistic.", 606),
-              ("public/keyframes/04-dawn-campus.webp", "07-sunset-friends.mp4",
-               "Quiet university campus at dawn after rain. Two or three distant young adults walk together beneath old trees, leaves move in a light breeze, puddles ripple and reflect the brightening sky, one person turns back briefly, smooth slow crane movement, hopeful but nostalgic ending feeling, photorealistic.", 707),
-              ("public/keyframes/03-night-bus.webp", "08-train-departure.mp4",
-               "Night bus leaving a Turkish university district. City and campus lights stream past the rain-covered window, reflections move continuously across the glass, the anonymous passenger seen from behind shifts slightly and breathes naturally, bus vibration is subtle, cinematic forward motion, deep longing, photorealistic.", 808),
-              ("public/keyframes/04-dawn-campus.webp", "09-campus-leave.mp4",
-               "A lone young adult walks away across a quiet university campus at dawn after rain. Coat moves in the breeze, footsteps create small puddle ripples, leaves drift across the path, distant trees move naturally, camera slowly follows from behind then rises slightly, emotional farewell to university years, photorealistic 35mm.", 909),
-          ]
-
-          def extract_path(result):
-              items = result if isinstance(result, (list, tuple)) else [result]
-              for item in items:
-                  if isinstance(item, str) and item.lower().endswith(".mp4") and os.path.exists(item):
-                      return item
-                  if isinstance(item, dict):
-                      p = item.get("path") or item.get("filepath")
-                      if isinstance(p, str) and os.path.exists(p):
-                          return p
-                      v = item.get("video")
-                      if isinstance(v, dict):
-                          p = v.get("path")
-                          if isinstance(p, str) and os.path.exists(p):
-                              return p
-              return None
-
-          first_success = None
-          for idx, (src, out_name, prompt, seed) in enumerate(scenes, 1):
-              out = os.path.join("/tmp/wan", out_name)
-              success = False
-              for attempt in range(1, 4):
-                  try:
-                      print(f"SCENE {idx}/9 {out_name} attempt={attempt}", flush=True)
-                      result = client.predict(
-                          handle_file(src),
-                          None,
-                          prompt,
-                          4,
-                          negative,
-                          5.5,
-                          1,
-                          1,
-                          seed,
-                          False,
-                          api_name="/generate_video",
-                      )
-                      p = extract_path(result)
-                      if not p:
-                          raise RuntimeError(f"No MP4 path in result: {result!r}")
-                      shutil.copy2(p, out)
-                      success = True
-                      if first_success is None:
-                          first_success = out
-                      break
-                  except Exception as e:
-                      print(f"WARN scene {out_name} failed: {e!r}", flush=True)
-                      time.sleep(12 * attempt)
-              if not success:
-                  if first_success and os.path.exists(first_success):
-                      print(f"FALLBACK copying first successful moving clip to {out_name}", flush=True)
-                      shutil.copy2(first_success, out)
-                  else:
-                      raise RuntimeError(f"No moving clip could be generated for {out_name}")
-              time.sleep(3)
-          PY
-          python /tmp/generate_ozluyorum.py
-
-      - name: AI sahnelerini 1080p standardize et
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/normalized
-          for SRC in /tmp/wan/*.mp4; do
-            NAME="$(basename "$SRC")"
-            ffmpeg -hide_banner -loglevel error -y -i "$SRC" \
+            ffmpeg -hide_banner -loglevel error -y -i "${SRC}" \
               -vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30" \
-              -an -c:v libx264 -preset veryfast -crf 21 -pix_fmt yuv420p -movflags +faststart \
-              "public/video/$NAME"
-          done
+              -an -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart "${OUT}"
+
+            test -s "${OUT}"
+            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "${OUT}"
+            rm -f "${SRC}"
+          }
+
+          fetch_clip 35213341 "01-rain-window"
+          fetch_clip 38684062 "02-campus-walk" "01-rain-window"
+          fetch_clip 4872859  "03-notebook" "02-campus-walk"
+          fetch_clip 8500475  "04-classroom" "03-notebook"
+          fetch_clip 7971029  "05-campus-friends" "02-campus-walk"
+          fetch_clip 6798784  "06-old-photos" "03-notebook"
+          fetch_clip 31384926 "07-sunset-friends" "05-campus-friends"
+          fetch_clip 6308503  "08-train-departure" "02-campus-walk"
+          fetch_clip 7252614  "09-campus-leave" "05-campus-friends"
+
+          echo "Hazirlanan gerçek hareketli video dosyalari:"
+          ls -lh public/video
+
           COUNT="$(find public/video -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')"
-          echo "moving_clips=$COUNT"
           test "$COUNT" -eq 9
-          for F in public/video/*.mp4; do
-            ffprobe -v error -show_entries format=duration -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 "$F"
-          done
 
       - name: TypeScript kontrolü
         run: npx tsc --noEmit
@@ -195,7 +118,7 @@ jobs:
       - name: Remotion hareketli klibi render et
         run: |
           mkdir -p out
-          npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum (Üni) - AI HAREKETLI.mp4" \
+          npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4" \
             --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --concurrency=2 --overwrite
 
       - name: Çıktıyı doğrula
@@ -203,15 +126,18 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          OUTPUT="out/Manus - Özlüyorum (Üni) - AI HAREKETLI.mp4"
+          OUTPUT="out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4"
           test -s "$OUTPUT"
+
           VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
           AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
           DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
           WIDTH="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
           HEIGHT="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
           FILE_SIZE="$(stat -c%s "$OUTPUT")"
+
           echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION size=${WIDTH}x${HEIGHT} bytes=$FILE_SIZE"
+
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
           test "$WIDTH" = "1920"
@@ -219,12 +145,12 @@ jobs:
           test "$FILE_SIZE" -gt 10000000
           python3 -c 'import sys; d=float(sys.argv[1]); assert 183.5 <= d <= 184.8, f"unexpected duration: {d}"' "$DURATION"
 
-      - name: AI hareketli MP4 dosyasını yükle
+      - name: Hareketli MP4 dosyasını yükle
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Manus-Ozluyorum-Uni-AI-HAREKETLI
-          path: "out/Manus - Özlüyorum (Üni) - AI HAREKETLI.mp4"
+          name: Manus-Ozluyorum-Uni-HAREKETLI
+          path: "out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4"
           if-no-files-found: error
           retention-days: 7
 
