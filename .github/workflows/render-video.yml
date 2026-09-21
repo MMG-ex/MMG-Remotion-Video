@@ -24,7 +24,7 @@ jobs:
   render:
     name: Render Son Yaprak Final MP4
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Projeyi indir
