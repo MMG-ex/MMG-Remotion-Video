@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 BATCH_SIZE = 5
+BUNDLED_MANIFEST = None
 WORK = Path("/kaggle/working")
 OUT = WORK / "generated"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -24,13 +25,10 @@ NEGATIVE = (
     "cartoon, illustration, oversaturated colors, low detail"
 )
 
-manifest_path = Path("/kaggle/working/scenes.json")
-if not manifest_path.exists():
-    manifest_path = Path("scenes.json")
-if not manifest_path.exists():
-    raise FileNotFoundError("scenes.json was not bundled with this Kaggle run")
+if not BUNDLED_MANIFEST:
+    raise RuntimeError("BUNDLED_MANIFEST was not injected by the GitHub orchestrator")
 
-manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest = BUNDLED_MANIFEST
 batch = manifest.get("scenes", [])[:BATCH_SIZE]
 
 if not batch:
