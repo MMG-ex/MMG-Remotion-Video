@@ -2,6 +2,10 @@ name: NVIDIA NIM Smoke Test
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nvidia-nim-smoke.yml"
 
 permissions:
   contents: read
