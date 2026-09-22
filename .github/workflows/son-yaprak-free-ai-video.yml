@@ -99,10 +99,22 @@ jobs:
           echo "$STATUS_TEXT"
           LOW="$(printf '%s' "$STATUS_TEXT" | tr '[:upper:]' '[:lower:]')"
 
+          FORCE_RESTART=false
+          if [ "${{ github.event_name }}" = "push" ] && echo "${{ github.event.head_commit.message }}" | grep -Fq "[force-kaggle]"; then
+            FORCE_RESTART=true
+            echo "Force restart requested after Kaggle account verification."
+          fi
+
           if echo "$LOW" | grep -Eq "running|queued|pending"; then
-            echo "busy=true" >> "$GITHUB_OUTPUT"
-            echo "collect=false" >> "$GITHUB_OUTPUT"
-            echo "errored=false" >> "$GITHUB_OUTPUT"
+            if [ "$FORCE_RESTART" = "true" ]; then
+              echo "busy=false" >> "$GITHUB_OUTPUT"
+              echo "collect=false" >> "$GITHUB_OUTPUT"
+              echo "errored=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "busy=true" >> "$GITHUB_OUTPUT"
+              echo "collect=false" >> "$GITHUB_OUTPUT"
+              echo "errored=false" >> "$GITHUB_OUTPUT"
+            fi
           elif echo "$LOW" | grep -Eq "complete|success"; then
             echo "busy=false" >> "$GITHUB_OUTPUT"
             echo "collect=true" >> "$GITHUB_OUTPUT"
