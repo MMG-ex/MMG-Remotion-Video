@@ -32,8 +32,11 @@ jobs:
           echo "::add-mask::$CLEAN_TOKEN"
           echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
 
-      - name: Install Kaggle CLI
-        run: python -m pip install -q -U kaggle
+      - name: Install Kaggle CLI with no-run support
+        run: |
+          python -m pip uninstall -y kaggle >/dev/null 2>&1 || true
+          python -m pip install -q -U "git+https://github.com/Kaggle/kaggle-cli.git"
+          kaggle kernels push --help | grep -F -- "--no-run"
 
       - name: Detect Kaggle username
         shell: bash
