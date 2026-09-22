@@ -1,0 +1,49 @@
+name: Inspect Kaggle Probe Metadata
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/inspect-kaggle-metadata-trigger"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-offline-video-probe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize token
+        shell: bash
+        run: |
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+      - name: Install Kaggle CLI
+        run: python -m pip install -q -U kaggle
+      - name: Detect username
+        shell: bash
+        run: |
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+      - name: Pull current kernel metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/kmeta && mkdir -p /tmp/kmeta
+          kaggle kernels pull "${KAGGLE_USERNAME}/${KERNEL_SLUG}" -p /tmp/kmeta -m
+          echo "=== KERNEL METADATA ==="
+          cat /tmp/kmeta/kernel-metadata.json
