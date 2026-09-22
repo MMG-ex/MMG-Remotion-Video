@@ -1,0 +1,71 @@
+name: Inspect Kaggle Wan Model Files
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/wan-model-files-trigger"]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-wan-files-probe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize token
+        shell: bash
+        run: |
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+      - name: Install Kaggle CLI
+        run: python -m pip install -q -U kaggle
+      - name: Detect username
+        shell: bash
+        run: |
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+      - name: Build file probe
+        shell: bash
+        run: |
+          rm -rf /tmp/kfiles && mkdir -p /tmp/kfiles
+          cat > /tmp/kfiles/probe.py <<'PY'
+          import os, json
+          base="/kaggle/input/models/pengcanlyu/wan2.1-t2v-1.3b/pytorch/wan/1"
+          files=[]
+          for root, dirs, names in os.walk(base):
+              for n in names:
+                  files.append(os.path.relpath(os.path.join(root,n),base))
+          print("FILE_COUNT", len(files))
+          print("FILES", json.dumps(files[:400], ensure_ascii=False))
+          print("MODEL_INDEX", os.path.exists(os.path.join(base,"model_index.json")))
+          print("CONFIG_JSON", os.path.exists(os.path.join(base,"config.json")))
+          PY
+          cat > /tmp/kfiles/kernel-metadata.json <<JSON
+          {
+            "id": "${KAGGLE_USERNAME}/${KERNEL_SLUG}",
+            "title": "Son Yaprak Wan Files Probe",
+            "code_file": "probe.py",
+            "language": "python",
+            "kernel_type": "script",
+            "is_private": true,
+            "enable_gpu": false,
+            "enable_internet": false,
+            "model_sources": ["pengcanlyu/wan2.1-t2v-1.3b/PyTorch/wan/1"]
+          }
+          JSON
+      - name: Push probe
+        run: kaggle kernels push -p /tmp/kfiles
