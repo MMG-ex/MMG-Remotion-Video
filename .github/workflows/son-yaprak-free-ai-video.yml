@@ -34,7 +34,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
 
-      - name: Kaggle Secret doğrula
+      - name: Kaggle Secret doğrula ve normalize et
         shell: bash
         run: |
           set -euo pipefail
@@ -43,45 +43,45 @@ jobs:
             exit 2
           fi
 
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          if [ -z "$CLEAN_TOKEN" ]; then
+            echo "::error::KAGGLE_API_TOKEN boş."
+            exit 2
+          fi
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+
       - name: Kaggle CLI kur
         run: python -m pip install -q -U kaggle
 
-      - name: Kaggle kullanıcı adını token üzerinden bul
+      - name: Kaggle tokenını doğrula ve kullanıcı adını bul
         shell: bash
         run: |
           set -euo pipefail
+
           USERNAME="$(python - <<'PY'
           import os
+          token = os.environ.get("KAGGLE_API_TOKEN", "").strip()
 
-          # Kaggle 1.8+ import sırasında KAGGLE_API_TOKEN'ı introspect eder
-          # ve global kaggle.api nesnesinin config_values alanına username yazar.
-          token = os.environ.get("KAGGLE_API_TOKEN", "")
           import kaggle
-
           api = kaggle.api
           username = str((getattr(api, "config_values", {}) or {}).get("username", "") or "").strip()
 
-          # Savunmacı fallback: global API üzerinden aynı tokenı yeniden introspect et.
           if not username and token:
-              try:
-                  username = str(api._introspect_token(token) or "").strip()
-              except Exception:
-                  pass
+              username = str(api._introspect_token(token) or "").strip()
 
           if not username:
-              raise SystemExit("Kaggle token aktif ancak kullanıcı adı introspection sonucundan alınamadı.")
+              raise SystemExit(4)
 
           print(username)
           PY
-          )"
-
-          if [ -z "$USERNAME" ]; then
-            echo "::error::Kaggle kullanıcı adı token üzerinden bulunamadı."
-            exit 3
-          fi
+          )" || {
+            echo "::error::Kaggle tokenı Kaggle tarafından doğrulanmadı. Secret'a yeni üretilmiş tam KGAT_ tokenı girilmelidir."
+            exit 4
+          }
 
           echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
-          echo "Kaggle kullanıcısı otomatik bulundu: $USERNAME"
+          echo "Kaggle kimlik doğrulaması başarılı."
 
       - name: GPU kotasını raporla
         continue-on-error: true
