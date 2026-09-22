@@ -129,8 +129,7 @@ jobs:
           set -o pipefail
           echo "=== KAGGLE KERNEL LOG ==="
           kaggle kernels logs "${KAGGLE_USERNAME}/${KERNEL_SLUG}" || true
-          echo "::error::Kaggle kernel ERROR durumunda. Yukarıdaki log düzeltilmeden yeni batch başlatılmayacak."
-          exit 5
+          echo "::warning::Kaggle kernel ERROR durumunda. Bu çalışma düzeltilmiş kodla tek seferlik retry yapacak."
 
       - name: Tamamlanan Kaggle çıktısını indir
         if: steps.status.outputs.busy != 'true' && steps.status.outputs.errored != 'true' && steps.status.outputs.collect == 'true'
