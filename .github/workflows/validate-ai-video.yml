@@ -1,0 +1,28 @@
+name: Validate Son Yaprak AI Video Code
+
+on:
+  push:
+    branches:
+      - son-yaprak-ai-video-free
+    paths:
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/validate-ai-video.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
