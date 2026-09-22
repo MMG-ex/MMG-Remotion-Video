@@ -1,0 +1,87 @@
+{
+  "project": "ÖZLÜYORUM",
+  "version": "V3-AI-CINEMATIC",
+  "rule": "NO_STOCK_FALLBACK",
+  "scenes": [
+    {
+      "id": "01",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "02",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "03",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "04",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "05",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "06",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "07",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "08",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "09",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "10",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "11",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "12",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "13",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "14",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "15",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    },
+    {
+      "id": "16",
+      "provider": "higgsfield",
+      "sourceUrl": ""
+    }
+  ]
+}
