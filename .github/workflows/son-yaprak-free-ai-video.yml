@@ -182,6 +182,25 @@ jobs:
           mkdir -p kaggle/runtime
           cp kaggle/kernel.py kaggle/runtime/kernel.py
 
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("ai-video/scenes.json").read_text(encoding="utf-8"))
+          generated = {p.stem for p in Path("public/generated").glob("scene-*.mp4")}
+          batch = [s for s in manifest["scenes"] if s["id"] not in generated][:5]
+          payload = {
+              "project": manifest.get("project"),
+              "model": manifest.get("model", "zai-org/CogVideoX-2b"),
+              "scenes": batch,
+          }
+          Path("kaggle/runtime/scenes.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print("Runtime batch:", [s["id"] for s in batch])
+          PY
+
           cat > kaggle/runtime/kernel-metadata.json <<JSON
           {
             "id": "${KAGGLE_USERNAME}/${KERNEL_SLUG}",
