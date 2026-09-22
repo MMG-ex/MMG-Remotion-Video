@@ -1,0 +1,287 @@
+name: Prepare Son Yaprak Manual GPU Batch
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/manual-gpu-batch-trigger"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      RUNTIME_DATASET_SLUG: wan21-offline-runtime
+      MANUAL_KERNEL_SLUG: son-yaprak-manual-gpu
+    steps:
+      - name: Checkout AI-video branch
+        uses: actions/checkout@v4
+        with:
+          ref: son-yaprak-ai-video-free
+          fetch-depth: 1
+
+      - name: Normalize Kaggle token
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Install Kaggle CLI
+        run: python -m pip install -q -U kaggle
+
+      - name: Detect Kaggle username
+        shell: bash
+        run: |
+          set -euo pipefail
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          if not u: raise SystemExit(2)
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+          echo "Kaggle user detected."
+
+      - name: Build private Wan2.1 offline runtime dataset
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/wan-runtime /tmp/Wan2.1
+          mkdir -p /tmp/wan-runtime
+
+          git clone --depth 1 https://github.com/Wan-Video/Wan2.1.git /tmp/Wan2.1
+          cd /tmp
+          zip -qr /tmp/wan-runtime/wan21-source.zip Wan2.1
+
+          python -m pip download --no-deps -d /tmp/wan-runtime             easydict ftfy imageio-ffmpeg sentencepiece
+
+          cat > /tmp/wan-runtime/dataset-metadata.json <<JSON
+          {
+            "title": "Wan2.1 Offline Runtime",
+            "id": "${KAGGLE_USERNAME}/${RUNTIME_DATASET_SLUG}",
+            "licenses": [{"name": "apache-2.0"}],
+            "description": "Private runtime bundle for Son Yaprak AI-video generation. Includes official Wan2.1 source plus small offline Python wheels. Model weights are attached separately as a Kaggle Model."
+          }
+          JSON
+
+          if kaggle datasets files "${KAGGLE_USERNAME}/${RUNTIME_DATASET_SLUG}" --page-size 1 >/dev/null 2>&1; then
+            kaggle datasets version -p /tmp/wan-runtime -m "Refresh Wan2.1 offline runtime" -r zip
+          else
+            kaggle datasets create -p /tmp/wan-runtime -r zip
+          fi
+
+      - name: Build first 5-scene offline GPU notebook
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/manual-gpu
+          mkdir -p /tmp/manual-gpu
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("ai-video/scenes.json").read_text(encoding="utf-8"))
+          batch = manifest["scenes"][:5]
+
+          runner = r'''import gc
+          import glob
+          import json
+          import os
+          import shutil
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          import torch
+
+          print("=== SON YAPRAK REAL AI VIDEO / MANUAL GPU BATCH ===")
+          print("CUDA:", torch.cuda.is_available())
+          print("DEVICE COUNT:", torch.cuda.device_count())
+          if not torch.cuda.is_available():
+              raise RuntimeError("GPU aktif degil. Settings > Accelerator > GPU T4 x2 secip Save Version > Save & Run All kullanin.")
+
+          print("GPU0:", torch.cuda.get_device_name(0))
+          print("VRAM GB:", round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2))
+
+          RUNTIME_ROOT = Path("/kaggle/input/wan21-offline-runtime")
+          MODEL_ROOT = Path("/kaggle/input/models/pengcanlyu/wan2.1-t2v-1.3b/pytorch/wan/1")
+          WORK = Path("/kaggle/working")
+          SRC = WORK / "wan21-src"
+
+          if SRC.exists():
+              shutil.rmtree(SRC)
+          SRC.mkdir(parents=True, exist_ok=True)
+
+          archive = next(iter(RUNTIME_ROOT.glob("wan21-source.zip")), None)
+          if archive is None:
+              raise FileNotFoundError("wan21-source.zip bulunamadi")
+          shutil.unpack_archive(str(archive), str(SRC))
+
+          wheel_names = ["easydict", "ftfy", "imageio-ffmpeg", "sentencepiece"]
+          subprocess.check_call([
+              sys.executable, "-m", "pip", "install", "-q", "--no-index",
+              "--find-links", str(RUNTIME_ROOT), *wheel_names
+          ])
+
+          wan_repo = SRC / "Wan2.1"
+          init_py = wan_repo / "wan" / "__init__.py"
+          init_py.write_text(
+              "from . import configs\nfrom .text2video import WanT2V\n",
+              encoding="utf-8"
+          )
+          sys.path.insert(0, str(wan_repo))
+
+          from wan.configs import WAN_CONFIGS, SIZE_CONFIGS
+          from wan.text2video import WanT2V
+          from wan.utils.utils import cache_video
+
+          SCENES = __SCENES__
+          STYLE = (
+              " Photorealistic cinematic drama, real continuous motion, natural human body movement, "
+              "realistic cloth and hair physics, physically plausible rain wind water and reflections, "
+              "subtle handheld 35mm cinema camera, shallow depth of field, soft filmic contrast, "
+              "emotionally restrained acting, no text, no subtitles, no logo."
+          )
+
+          cfg = WAN_CONFIGS["t2v-1.3B"]
+          print("Loading Wan2.1-T2V-1.3B from:", MODEL_ROOT)
+          pipe = WanT2V(
+              config=cfg,
+              checkpoint_dir=str(MODEL_ROOT),
+              device_id=0,
+              rank=0,
+              t5_fsdp=False,
+              dit_fsdp=False,
+              use_usp=False,
+              t5_cpu=True,
+          )
+
+          results = []
+          for scene in SCENES:
+              sid = scene["id"]
+              out = WORK / f"{sid}.mp4"
+              if out.exists() and out.stat().st_size > 100000:
+                  print("SKIP existing:", sid)
+                  results.append({"id": sid, "status": "existing", "file": out.name})
+                  continue
+
+              prompt = scene["prompt"] + STYLE
+              print("\n=== GENERATING", sid, "===")
+              print(prompt)
+
+              try:
+                  video = pipe.generate(
+                      prompt,
+                      size=SIZE_CONFIGS["832*480"],
+                      frame_num=81,
+                      shift=8.0,
+                      sample_solver="unipc",
+                      sampling_steps=30,
+                      guide_scale=6.0,
+                      seed=int(scene["seed"]),
+                      offload_model=True,
+                  )
+                  saved = cache_video(
+                      tensor=video[None],
+                      save_file=str(out),
+                      fps=cfg.sample_fps,
+                      nrow=1,
+                      normalize=True,
+                      value_range=(-1, 1),
+                  )
+                  if not saved or not out.exists():
+                      raise RuntimeError("MP4 kaydedilemedi")
+                  results.append({"id": sid, "status": "ok", "file": out.name, "bytes": out.stat().st_size})
+                  print("DONE:", out, out.stat().st_size)
+              except Exception as e:
+                  results.append({"id": sid, "status": "failed", "error": repr(e)})
+                  print("FAILED:", sid, repr(e))
+              finally:
+                  gc.collect()
+                  torch.cuda.empty_cache()
+
+          report = {
+              "batch": [s["id"] for s in SCENES],
+              "gpu": torch.cuda.get_device_name(0),
+              "results": results,
+          }
+          (WORK / "generation-report.json").write_text(
+              json.dumps(report, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          '''
+
+          runner = runner.replace("__SCENES__", repr(batch))
+
+          nb = {
+              "cells": [
+                  {
+                      "cell_type": "markdown",
+                      "metadata": {},
+                      "source": [
+                          "# Son Yaprak — Gerçek AI Video / Batch 1\n",
+                          "Söz: M. Murat Güvenoğlu  \n",
+                          "Müzik: Suno.com  \n",
+                          "Offline Wan2.1-T2V-1.3B + Kaggle GPU T4 x2"
+                      ]
+                  },
+                  {
+                      "cell_type": "code",
+                      "execution_count": None,
+                      "metadata": {},
+                      "outputs": [],
+                      "source": [line + "\n" for line in runner.splitlines()]
+                  }
+              ],
+              "metadata": {
+                  "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+                  "language_info": {"name": "python"}
+              },
+              "nbformat": 4,
+              "nbformat_minor": 5
+          }
+
+          Path("/tmp/manual-gpu/son-yaprak-manual-gpu.ipynb").write_text(
+              json.dumps(nb, ensure_ascii=False, indent=2),
+              encoding="utf-8"
+          )
+          print("Notebook batch:", [s["id"] for s in batch])
+          PY
+
+          cat > /tmp/manual-gpu/kernel-metadata.json <<JSON
+          {
+            "id": "${KAGGLE_USERNAME}/${MANUAL_KERNEL_SLUG}",
+            "title": "Son Yaprak Manual GPU",
+            "code_file": "son-yaprak-manual-gpu.ipynb",
+            "language": "python",
+            "kernel_type": "notebook",
+            "is_private": true,
+            "enable_gpu": true,
+            "enable_internet": false,
+            "machine_shape": "NvidiaTeslaT4",
+            "dataset_sources": ["${KAGGLE_USERNAME}/${RUNTIME_DATASET_SLUG}"],
+            "competition_sources": [],
+            "kernel_sources": [],
+            "model_sources": ["pengcanlyu/wan2.1-t2v-1.3b/PyTorch/wan/1"]
+          }
+          JSON
+
+      - name: Save notebook without running on CPU
+        run: |
+          kaggle kernels push -p /tmp/manual-gpu --accelerator NvidiaTeslaT4 --no-run
+
+      - name: Show manual GPU notebook URL
+        run: |
+          echo "READY=https://www.kaggle.com/code/${KAGGLE_USERNAME}/${MANUAL_KERNEL_SLUG}/edit"
