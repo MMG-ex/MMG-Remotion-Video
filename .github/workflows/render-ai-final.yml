@@ -1,0 +1,139 @@
+name: MMG AI FINAL Render
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mmg-ai-final
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Render Ozluyorum V3 AI CINEMATIC
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Dependencies
+        run: |
+          npm install --no-audit --no-fund
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg curl
+
+      - name: Audio
+        run: |
+          mkdir -p public/audio
+          curl --fail --location --retry 4 --retry-delay 5 --retry-all-errors \
+            "https://cdn.openart.ai/openart-uploads/production/attachment-transfers/f81400d9be2b11bbe0576720c3c49e191f5caa85b418b2a54d089bc9745d2b3f.wav" \
+            --output "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
+          test -s "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
+
+      - name: Download approved AI clips
+        run: |
+          rm -rf /tmp/ai-source public/ai-video
+          mkdir -p /tmp/ai-source public/ai-video out
+          python pipeline/download_sources.py \
+            --plan pipeline/ozluyorum/scene-plan.json \
+            --sources pipeline/ozluyorum/video-sources.json \
+            --out /tmp/ai-source
+
+      - name: Hard quality gate on source clips
+        run: |
+          python pipeline/quality_gate.py \
+            --dir /tmp/ai-source \
+            --plan pipeline/ozluyorum/scene-plan.json \
+            --report out/quality-report-source.json
+
+      - name: Normalize AI clips to 1080p H264 30fps
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess, pathlib
+          plan=json.load(open("pipeline/ozluyorum/scene-plan.json",encoding="utf-8"))
+          pathlib.Path("public/ai-video").mkdir(parents=True,exist_ok=True)
+          for s in plan["scenes"]:
+              src=pathlib.Path("/tmp/ai-source")/s["file"]
+              dst=pathlib.Path("public/ai-video")/s["file"]
+              cmd=[
+                  "ffmpeg","-hide_banner","-loglevel","error","-y","-i",str(src),
+                  "-vf","scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30",
+                  "-an","-c:v","libx264","-preset","medium","-crf","18","-pix_fmt","yuv420p",
+                  "-movflags","+faststart",str(dst)
+              ]
+              print(" ".join(cmd))
+              subprocess.check_call(cmd)
+          PY
+
+      - name: Quality gate normalized clips
+        run: |
+          python pipeline/quality_gate.py \
+            --dir public/ai-video \
+            --plan pipeline/ozluyorum/scene-plan.json \
+            --report out/quality-report-normalized.json
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Remotion AI final render
+        run: |
+          npx remotion render src/index.ts AIClip "out/Ozluyorum_V3_AI_CINEMATIC_FINAL.mp4" \
+            --codec=h264 \
+            --audio-codec=aac \
+            --audio-bitrate=320k \
+            --crf=18 \
+            --concurrency=2 \
+            --overwrite
+
+      - name: Validate final MP4
+        run: |
+          set -euo pipefail
+          F="out/Ozluyorum_V3_AI_CINEMATIC_FINAL.mp4"
+          test -s "$F"
+          VC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$F" | tr -d '\r\n,')"
+          AC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$F" | tr -d '\r\n,')"
+          W="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$F" | tr -d '\r\n,')"
+          H="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$F" | tr -d '\r\n,')"
+          D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$F" | tr -d '\r\n,')"
+          B="$(stat -c%s "$F")"
+          echo "video=$VC audio=$AC size=${W}x${H} duration=$D bytes=$B"
+          test "$VC" = "h264"
+          test "$AC" = "aac"
+          test "$W" = "1920"
+          test "$H" = "1080"
+          test "$B" -gt 20000000
+          python -c 'import sys; d=float(sys.argv[1]); assert 183.5 <= d <= 184.8, d' "$D"
+
+      - name: Create visual review contact sheet
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -i "out/Ozluyorum_V3_AI_CINEMATIC_FINAL.mp4" \
+            -vf "select='not(mod(n,360))',scale=480:-1,tile=4x4:padding=4:margin=4" \
+            -frames:v 1 "out/Ozluyorum_V3_review.jpg"
+
+      - name: Upload final
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ozluyorum-V3-AI-CINEMATIC-FINAL
+          path: |
+            out/Ozluyorum_V3_AI_CINEMATIC_FINAL.mp4
+            out/Ozluyorum_V3_review.jpg
+            out/quality-report-source.json
+            out/quality-report-normalized.json
+            pipeline/ozluyorum/scene-plan.json
+            pipeline/ozluyorum/video-sources.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
