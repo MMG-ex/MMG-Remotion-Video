@@ -51,40 +51,25 @@ jobs:
         run: |
           set -euo pipefail
           USERNAME="$(python - <<'PY'
-          import os, re, subprocess
-          username = ""
+          import os
 
-          # 1) Kaggle API authenticated config
-          try:
-              from kaggle.api.kaggle_api_extended import KaggleApi
-              api = KaggleApi()
-              api.authenticate()
-              username = str((getattr(api, "config_values", {}) or {}).get("username", "") or "").strip()
-          except Exception:
-              pass
+          # Kaggle 1.8+ import sırasında KAGGLE_API_TOKEN'ı introspect eder
+          # ve global kaggle.api nesnesinin config_values alanına username yazar.
+          token = os.environ.get("KAGGLE_API_TOKEN", "")
+          import kaggle
 
-          # 2) Current CLI config output fallback
-          if not username:
+          api = kaggle.api
+          username = str((getattr(api, "config_values", {}) or {}).get("username", "") or "").strip()
+
+          # Savunmacı fallback: global API üzerinden aynı tokenı yeniden introspect et.
+          if not username and token:
               try:
-                  out = subprocess.check_output(
-                      ["kaggle", "config", "view"],
-                      stderr=subprocess.STDOUT,
-                      text=True,
-                  )
-                  patterns = [
-                      r"(?im)^\s*username\s*[:=]\s*['\"]?([A-Za-z0-9_.-]+)",
-                      r"(?im)username\s+['\"]?([A-Za-z0-9_.-]+)",
-                  ]
-                  for p in patterns:
-                      m = re.search(p, out)
-                      if m:
-                          username = m.group(1)
-                          break
+                  username = str(api._introspect_token(token) or "").strip()
               except Exception:
                   pass
 
           if not username:
-              raise SystemExit("Kaggle token doğrulandı ancak kullanıcı adı otomatik bulunamadı.")
+              raise SystemExit("Kaggle token aktif ancak kullanıcı adı introspection sonucundan alınamadı.")
 
           print(username)
           PY
