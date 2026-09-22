@@ -14,13 +14,12 @@ concurrency:
 
 jobs:
   orchestrate:
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.KAGGLE_USERNAME != '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || secrets.KAGGLE_API_TOKEN != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 55
 
     env:
       TARGET_BRANCH: son-yaprak-ai-video-free
-      KAGGLE_USERNAME: ${{ vars.KAGGLE_USERNAME }}
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
       KERNEL_SLUG: son-yaprak-ai-video
 
@@ -31,14 +30,10 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
 
-      - name: Kaggle ayarını doğrula
+      - name: Kaggle Secret doğrula
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${KAGGLE_USERNAME:-}" ]; then
-            echo "::error::Repository variable KAGGLE_USERNAME eksik."
-            exit 2
-          fi
           if [ -z "${KAGGLE_API_TOKEN:-}" ]; then
             echo "::error::Repository secret KAGGLE_API_TOKEN eksik."
             exit 2
@@ -46,6 +41,58 @@ jobs:
 
       - name: Kaggle CLI kur
         run: python -m pip install -q -U kaggle
+
+      - name: Kaggle kullanıcı adını token üzerinden bul
+        shell: bash
+        run: |
+          set -euo pipefail
+          USERNAME="$(python - <<'PY'
+          import os, re, subprocess
+          username = ""
+
+          # 1) Kaggle API authenticated config
+          try:
+              from kaggle.api.kaggle_api_extended import KaggleApi
+              api = KaggleApi()
+              api.authenticate()
+              username = str((getattr(api, "config_values", {}) or {}).get("username", "") or "").strip()
+          except Exception:
+              pass
+
+          # 2) Current CLI config output fallback
+          if not username:
+              try:
+                  out = subprocess.check_output(
+                      ["kaggle", "config", "view"],
+                      stderr=subprocess.STDOUT,
+                      text=True,
+                  )
+                  patterns = [
+                      r"(?im)^\s*username\s*[:=]\s*['\"]?([A-Za-z0-9_.-]+)",
+                      r"(?im)username\s+['\"]?([A-Za-z0-9_.-]+)",
+                  ]
+                  for p in patterns:
+                      m = re.search(p, out)
+                      if m:
+                          username = m.group(1)
+                          break
+              except Exception:
+                  pass
+
+          if not username:
+              raise SystemExit("Kaggle token doğrulandı ancak kullanıcı adı otomatik bulunamadı.")
+
+          print(username)
+          PY
+          )"
+
+          if [ -z "$USERNAME" ]; then
+            echo "::error::Kaggle kullanıcı adı token üzerinden bulunamadı."
+            exit 3
+          fi
+
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+          echo "Kaggle kullanıcısı otomatik bulundu: $USERNAME"
 
       - name: GPU kotasını raporla
         continue-on-error: true
