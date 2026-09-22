@@ -22,9 +22,9 @@ concurrency:
 
 jobs:
   render:
-    name: Render Ozluyorum HAREKETLI MP4
+    name: Render Ozluyorum V2 HAREKETLI MP4
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
 
     steps:
       - name: Projeyi indir
@@ -45,7 +45,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg curl
 
-      - name: Özlüyorum ses dosyasını özgün adıyla indir
+      - name: Özlüyorum ses dosyasını indir
         run: |
           mkdir -p public/audio
           curl --fail --location --retry 4 --retry-delay 5 --retry-all-errors \
@@ -54,20 +54,21 @@ jobs:
           test -s "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
           ffprobe -v error -show_entries format=duration -of csv=p=0 "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
 
-      - name: Gerçek hareketli video sahnelerini indir ve 1080p hazırla
+      - name: V2 gerçek hareketli özlem sahnelerini hazırla
         run: |
           set -euo pipefail
-          mkdir -p public/video /tmp/ozluyorum-video
+          rm -rf public/video
+          mkdir -p public/video /tmp/ozluyorum-v2
 
           fetch_clip () {
             ID="$1"
             NAME="$2"
             FALLBACK="${3:-}"
-            SRC="/tmp/ozluyorum-video/${NAME}-source.mp4"
+            SRC="/tmp/ozluyorum-v2/${NAME}-source.mp4"
             OUT="public/video/${NAME}.mp4"
 
             echo "=== Pexels video ${ID} -> ${NAME} ==="
-            if ! curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors \
+            if ! curl --fail --location --retry 3 --retry-delay 4 --retry-all-errors \
               --connect-timeout 20 --max-time 300 \
               -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36" \
               -e "https://www.pexels.com/" \
@@ -76,7 +77,7 @@ jobs:
             then
               rm -f "${SRC}"
               if [ -n "${FALLBACK}" ] && [ -s "public/video/${FALLBACK}.mp4" ]; then
-                echo "[WARN] ${ID} indirilemedi; hareketli yedek kullaniliyor: ${FALLBACK}"
+                echo "[WARN] ${ID} indirilemedi; tematik hareketli yedek: ${FALLBACK}"
                 cp "public/video/${FALLBACK}.mp4" "${OUT}"
                 return 0
               fi
@@ -89,44 +90,54 @@ jobs:
 
             ffmpeg -hide_banner -loglevel error -y -i "${SRC}" \
               -vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30" \
-              -an -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart "${OUT}"
+              -an -c:v libx264 -preset veryfast -crf 22 -pix_fmt yuv420p -movflags +faststart "${OUT}"
 
             test -s "${OUT}"
             ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "${OUT}"
             rm -f "${SRC}"
           }
 
-          fetch_clip 35213341 "01-rain-window"
-          fetch_clip 38684062 "02-campus-walk" "01-rain-window"
-          fetch_clip 4872859  "03-notebook" "02-campus-walk"
-          fetch_clip 8500475  "04-classroom" "03-notebook"
-          fetch_clip 7971029  "05-campus-friends" "02-campus-walk"
-          fetch_clip 6798784  "06-old-photos" "03-notebook"
-          fetch_clip 31384926 "07-sunset-friends" "05-campus-friends"
-          fetch_clip 6308503  "08-train-departure" "02-campus-walk"
-          fetch_clip 7252614  "09-campus-leave" "05-campus-friends"
+          # ŞİMDİ: yalnızlık ve yokluk
+          fetch_clip 8477565  "01-lonely-rain-window"
+          fetch_clip 6377373  "02-empty-chair"          "01-lonely-rain-window"
 
-          echo "Hazirlanan gerçek hareketli video dosyalari:"
+          # HATIRA NESNELERİ
+          fetch_clip 4230107  "03-old-photos"           "02-empty-chair"
+
+          # SICAK GEÇMİŞ: sevgiliyle birlikte
+          fetch_clip 6302981  "04-couple-rain"          "01-lonely-rain-window"
+          fetch_clip 5102615  "05-couple-hug"           "04-couple-rain"
+          fetch_clip 11789230 "06-couple-night"         "04-couple-rain"
+          fetch_clip 8249944  "07-couple-watch-rain"    "04-couple-rain"
+
+          # GEÇMİŞTEN KALAN İZ
+          fetch_clip 10660700 "08-old-letter"           "03-old-photos"
+
+          # ŞİMDİYE DÖNÜŞ VE FİNAL
+          fetch_clip 8860241  "09-lonely-window"        "01-lonely-rain-window"
+          fetch_clip 33766135 "10-dawn-walk"            "09-lonely-window"
+
+          echo "V2 hareketli sahneler:"
           ls -lh public/video
 
           COUNT="$(find public/video -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')"
-          test "$COUNT" -eq 9
+          test "$COUNT" -eq 10
 
       - name: TypeScript kontrolü
         run: npx tsc --noEmit
 
-      - name: Remotion hareketli klibi render et
+      - name: Remotion V2 klibi render et
         run: |
           mkdir -p out
-          npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4" \
-            --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --concurrency=2 --overwrite
+          npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum - V2 HAREKETLI.mp4" \
+            --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=19 --concurrency=2 --overwrite
 
       - name: Çıktıyı doğrula
         id: validate
         continue-on-error: true
         run: |
           set -euo pipefail
-          OUTPUT="out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4"
+          OUTPUT="out/Manus - Özlüyorum - V2 HAREKETLI.mp4"
           test -s "$OUTPUT"
 
           VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
@@ -137,7 +148,6 @@ jobs:
           FILE_SIZE="$(stat -c%s "$OUTPUT")"
 
           echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION size=${WIDTH}x${HEIGHT} bytes=$FILE_SIZE"
-
           test "$VIDEO_CODEC" = "h264"
           test "$AUDIO_CODEC" = "aac"
           test "$WIDTH" = "1920"
@@ -145,14 +155,15 @@ jobs:
           test "$FILE_SIZE" -gt 10000000
           python3 -c 'import sys; d=float(sys.argv[1]); assert 183.5 <= d <= 184.8, f"unexpected duration: {d}"' "$DURATION"
 
-      - name: Hareketli MP4 dosyasını yükle
+      - name: V2 MP4 dosyasını yükle
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Manus-Ozluyorum-Uni-HAREKETLI
-          path: "out/Manus - Özlüyorum (Üni) - HAREKETLI.mp4"
+          name: Manus-Ozluyorum-V2-HAREKETLI
+          path: "out/Manus - Özlüyorum - V2 HAREKETLI.mp4"
           if-no-files-found: error
           retention-days: 7
+          compression-level: 0
 
       - name: Doğrulama sonucunu uygula
         if: always()
