@@ -1,0 +1,58 @@
+name: NVIDIA NIM Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check NVIDIA secret exists
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          test -n "$NVIDIA_API_KEY"
+
+      - name: Test NVIDIA hosted NIM
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          set -euo pipefail
+          HTTP_CODE="$(curl -sS -o /tmp/nvidia.json -w "%{http_code}" \
+            https://integrate.api.nvidia.com/v1/chat/completions \
+            -H "Authorization: Bearer $NVIDIA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model":"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+              "messages":[{"role":"user","content":"Reply with exactly: NVIDIA_OK"}],
+              "max_tokens":32,
+              "temperature":0
+            }')"
+          echo "HTTP=$HTTP_CODE"
+          test "$HTTP_CODE" = "200"
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/nvidia.json',encoding='utf-8'))
+          text=d['choices'][0]['message']['content']
+          print('MODEL_RESPONSE_OK=' + str(bool(text)))
+          assert text
+          PY
+
+      - name: Record safe result
+        run: |
+          {
+            echo "NVIDIA hosted NIM authentication: PASS"
+            echo "Model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+            echo "Secret was not printed."
+          } > /tmp/nvidia-test.txt
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvidia-nim-smoke-result
+          path: /tmp/nvidia-test.txt
+          retention-days: 3
