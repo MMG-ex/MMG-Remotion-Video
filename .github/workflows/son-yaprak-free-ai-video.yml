@@ -193,10 +193,14 @@ jobs:
               "model": manifest.get("model", "zai-org/CogVideoX-2b"),
               "scenes": batch,
           }
-          Path("kaggle/runtime/scenes.json").write_text(
-              json.dumps(payload, ensure_ascii=False, indent=2),
-              encoding="utf-8",
-          )
+
+          kernel_path = Path("kaggle/runtime/kernel.py")
+          source = kernel_path.read_text(encoding="utf-8")
+          marker = "BUNDLED_MANIFEST = None"
+          if marker not in source:
+              raise SystemExit("kernel.py manifest marker bulunamadi")
+          source = source.replace(marker, "BUNDLED_MANIFEST = " + repr(payload), 1)
+          kernel_path.write_text(source, encoding="utf-8")
           print("Runtime batch:", [s["id"] for s in batch])
           PY
 
