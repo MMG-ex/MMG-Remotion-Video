@@ -1,0 +1,60 @@
+name: Kaggle GPU Alias Probe Status
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/gpu-alias-status-trigger"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-gpu-alias-probe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize token
+        shell: bash
+        run: |
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+      - name: Install Kaggle CLI
+        run: python -m pip install -q -U kaggle
+      - name: Detect username
+        shell: bash
+        run: |
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+      - name: Poll Kaggle kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          K="${KAGGLE_USERNAME}/${KERNEL_SLUG}"
+          for i in {1..30}; do
+            S="$(kaggle kernels status "$K" 2>&1 || true)"
+            echo "$S"
+            L="$(printf '%s' "$S" | tr '[:upper:]' '[:lower:]')"
+            if echo "$L" | grep -Eq 'complete|error|failed'; then
+              break
+            fi
+            sleep 10
+          done
+      - name: Show Kaggle logs
+        shell: bash
+        run: |
+          set -o pipefail
+          kaggle kernels logs "${KAGGLE_USERNAME}/${KERNEL_SLUG}" || true
