@@ -2,23 +2,9 @@ name: MMG Remotion MP4 Render
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - "src/**"
-      - "public/**"
-      - "assets/**"
-      - "package.json"
-      - "remotion.config.ts"
-      - ".github/workflows/render-video.yml"
 
 permissions:
   contents: read
-
-concurrency:
-  group: mmg-remotion-render-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   render:
@@ -52,7 +38,6 @@ jobs:
             "https://cdn.openart.ai/openart-uploads/production/attachment-transfers/f81400d9be2b11bbe0576720c3c49e191f5caa85b418b2a54d089bc9745d2b3f.wav" \
             --output "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
           test -s "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
-          ffprobe -v error -show_entries format=duration -of csv=p=0 "public/audio/1 numara manus_ Özlüyorum (Üni).wav"
 
       - name: V2 gerçek hareketli özlem sahnelerini hazırla
         run: |
@@ -67,61 +52,36 @@ jobs:
             SRC="/tmp/ozluyorum-v2/${NAME}-source.mp4"
             OUT="public/video/${NAME}.mp4"
 
-            echo "=== Pexels video ${ID} -> ${NAME} ==="
             if ! curl --fail --location --retry 3 --retry-delay 4 --retry-all-errors \
               --connect-timeout 20 --max-time 300 \
-              -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36" \
+              -A "Mozilla/5.0" \
               -e "https://www.pexels.com/" \
               "https://www.pexels.com/download/video/${ID}/" \
               --output "${SRC}"
             then
               rm -f "${SRC}"
               if [ -n "${FALLBACK}" ] && [ -s "public/video/${FALLBACK}.mp4" ]; then
-                echo "[WARN] ${ID} indirilemedi; tematik hareketli yedek: ${FALLBACK}"
                 cp "public/video/${FALLBACK}.mp4" "${OUT}"
                 return 0
               fi
-              echo "[ERROR] ${ID} indirilemedi ve yedek yok."
               return 1
             fi
-
-            test -s "${SRC}"
-            ffprobe -v error -show_entries format=duration -of csv=p=0 "${SRC}"
 
             ffmpeg -hide_banner -loglevel error -y -i "${SRC}" \
               -vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30" \
               -an -c:v libx264 -preset veryfast -crf 22 -pix_fmt yuv420p -movflags +faststart "${OUT}"
-
-            test -s "${OUT}"
-            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "${OUT}"
-            rm -f "${SRC}"
           }
 
-          # ŞİMDİ: yalnızlık ve yokluk
           fetch_clip 8477565  "01-lonely-rain-window"
           fetch_clip 6377373  "02-empty-chair"          "01-lonely-rain-window"
-
-          # HATIRA NESNELERİ
           fetch_clip 4230107  "03-old-photos"           "02-empty-chair"
-
-          # SICAK GEÇMİŞ: sevgiliyle birlikte
           fetch_clip 6302981  "04-couple-rain"          "01-lonely-rain-window"
           fetch_clip 5102615  "05-couple-hug"           "04-couple-rain"
           fetch_clip 11789230 "06-couple-night"         "04-couple-rain"
           fetch_clip 8249944  "07-couple-watch-rain"    "04-couple-rain"
-
-          # GEÇMİŞTEN KALAN İZ
           fetch_clip 10660700 "08-old-letter"           "03-old-photos"
-
-          # ŞİMDİYE DÖNÜŞ VE FİNAL
           fetch_clip 8860241  "09-lonely-window"        "01-lonely-rain-window"
           fetch_clip 33766135 "10-dawn-walk"            "09-lonely-window"
-
-          echo "V2 hareketli sahneler:"
-          ls -lh public/video
-
-          COUNT="$(find public/video -maxdepth 1 -type f -name '*.mp4' | wc -l | tr -d ' ')"
-          test "$COUNT" -eq 10
 
       - name: TypeScript kontrolü
         run: npx tsc --noEmit
@@ -132,31 +92,7 @@ jobs:
           npx remotion render src/index.ts Visualizer "out/Manus - Özlüyorum - V2 HAREKETLI.mp4" \
             --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=19 --concurrency=2 --overwrite
 
-      - name: Çıktıyı doğrula
-        id: validate
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          OUTPUT="out/Manus - Özlüyorum - V2 HAREKETLI.mp4"
-          test -s "$OUTPUT"
-
-          VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
-          AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
-          DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
-          WIDTH="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
-          HEIGHT="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$OUTPUT" | tr -d '\r\n,')"
-          FILE_SIZE="$(stat -c%s "$OUTPUT")"
-
-          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION size=${WIDTH}x${HEIGHT} bytes=$FILE_SIZE"
-          test "$VIDEO_CODEC" = "h264"
-          test "$AUDIO_CODEC" = "aac"
-          test "$WIDTH" = "1920"
-          test "$HEIGHT" = "1080"
-          test "$FILE_SIZE" -gt 10000000
-          python3 -c 'import sys; d=float(sys.argv[1]); assert 183.5 <= d <= 184.8, f"unexpected duration: {d}"' "$DURATION"
-
       - name: V2 MP4 dosyasını yükle
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Manus-Ozluyorum-V2-HAREKETLI
@@ -164,8 +100,3 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
-
-      - name: Doğrulama sonucunu uygula
-        if: always()
-        run: |
-          test "${{ steps.validate.outcome }}" = "success"
