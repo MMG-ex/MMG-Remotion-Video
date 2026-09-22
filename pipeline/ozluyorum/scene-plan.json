@@ -1,0 +1,237 @@
+{
+  "project": "ÖZLÜYORUM",
+  "version": "V3-AI-CINEMATIC",
+  "providerPolicy": {
+    "allowed": [
+      "higgsfield",
+      "runway",
+      "openart",
+      "wan-local"
+    ],
+    "forbidden": [
+      "pexels",
+      "stock",
+      "slideshow"
+    ],
+    "requireUniqueVideoPerScene": true,
+    "requireCharacterReferences": true
+  },
+  "characterBible": {
+    "man": {
+      "id": "man",
+      "description": "Turkish/Mediterranean man around 40, brown eyes, short dark hair with slight gray at temples, natural stubble, charcoal wool overcoat, dark navy sweater; restrained grief, never melodramatic.",
+      "runwayTaskId": "2f45f0f5-48f3-40f5-bb7c-1c28ebd1f107",
+      "referenceUrl": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/2f45f0f5-48f3-40f5-bb7c-1c28ebd1f107/dc0f480a-e316-4e8d-8c78-2e7e33f70ea1/Photorealistic_cinematic_character_reference_portrait_for_a_.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiYzU4Mjg4YWNlOWNmMWIyNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDI2MTQyMH0.aooB1RFkMq5OOT2SLLJenW1DOhvmrulq6NumrDSOLks"
+    },
+    "woman": {
+      "id": "woman",
+      "description": "Turkish/Mediterranean woman around 38, warm brown eyes, shoulder-length dark chestnut slightly wavy hair, camel wool coat, deep burgundy knitted scarf; gentle memorable smile.",
+      "runwayTaskId": "0ccc954d-aecd-49cc-b7bf-6d26b2bcfd7d",
+      "referenceUrl": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/0ccc954d-aecd-49cc-b7bf-6d26b2bcfd7d/4964da83-19f4-410b-939e-bb3e924d20f1/Photorealistic_cinematic_character_reference_portrait_for_a_.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMDM0NDJjMTI1YTlhY2VjYSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDIyOTc3OH0.YZrOlTPzpH43y_gtS_xrRHDOKsExMGU8bYMsef8Nk6s"
+    },
+    "couple": {
+      "id": "couple",
+      "runwayTaskId": "7616b05b-5eec-43f9-b589-bdbe92ae92a9",
+      "referenceUrl": ""
+    }
+  },
+  "visualBible": {
+    "present": "cold blue-gray palette, rain, sparse practical light, restrained camera, silence and absence",
+    "memory": "warm amber/gold palette, softer contrast, intimate handheld or slow dolly, natural smiles and touch",
+    "continuity": "same faces, exact wardrobe, same modest lived-in apartment and fireplace, same burgundy scarf as memory anchor",
+    "forbidden": "no campus, no train, no random city montage, no fantasy glow, no text inside generated footage, no reunion ending"
+  },
+  "negativePrompt": "different faces, age changes, wardrobe changes, duplicate people, extra fingers, warped hands, face morphing, lip-sync speaking, text, subtitles, logos, watermark, frozen pose, slideshow, excessive camera shake, melodrama, glamour fashion shoot",
+  "scenes": [
+    {
+      "id": "01",
+      "start": 0,
+      "end": 13.5,
+      "file": "01-present-fireplace.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Cold present. Same man alone in a modest apartment at night, rain sliding down the window, fireplace reduced to low embers, one empty chair beside him. He barely moves, breathes, looks toward the empty space, then toward the window. Slow controlled dolly-in, natural rain and fire movement, photorealistic Turkish drama.",
+      "playbackRate": 0.74
+    },
+    {
+      "id": "02",
+      "start": 12.5,
+      "end": 25,
+      "file": "02-memory-fireplace.mp4",
+      "references": [
+        "man",
+        "woman",
+        "couple"
+      ],
+      "prompt": "Warm memory in the exact same apartment. Same woman sits near the fireplace and turns toward the same man with a small genuine smile; burgundy scarf visible. He relaxes beside her. Fire flickers, rain beyond window, subtle body motion, intimate slow lateral camera, warm amber memory light.",
+      "playbackRate": 0.8
+    },
+    {
+      "id": "03",
+      "start": 24,
+      "end": 37,
+      "file": "03-empty-chair-clock.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Back to cold present. Same man notices the now-empty chair beside the fireplace; an analog wall clock advances and rain traces the window. He touches the chair back but does not sit. Slow push-in, blue-gray palette, realistic restrained performance.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "04",
+      "start": 36,
+      "end": 48,
+      "file": "04-i-cannot-forget.mp4",
+      "references": [
+        "man",
+        "woman"
+      ],
+      "prompt": "Visualize time forgetting while he cannot. Same man studies an old photograph of the same woman; focus racks between his eyes, the photo and the moving clock reflection. He closes his eyes briefly but cannot put the photo down. Quiet handheld micro-movement, no tears performance, photorealistic.",
+      "playbackRate": 0.83
+    },
+    {
+      "id": "05",
+      "start": 47,
+      "end": 60,
+      "file": "05-wind-leaf-transition.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Same man walks alone just outside the apartment building after rain. Autumn leaves move strongly in the wind; one leaf catches against his charcoal coat and he looks at it as a memory trigger. Smooth tracking shot, cold realistic street light, no random crowd.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "06",
+      "start": 59,
+      "end": 72,
+      "file": "06-her-smile.mp4",
+      "references": [
+        "woman",
+        "couple"
+      ],
+      "prompt": "Warm memory close-up of the same woman laughing softly at the same man, spontaneous and natural, not looking at camera. Her chestnut hair and burgundy scarf move slightly in a breeze from an open window. Slow 50mm handheld memory shot, amber light, realistic skin and micro-expressions.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "07",
+      "start": 71,
+      "end": 84,
+      "file": "07-couple-wind-walk.mp4",
+      "references": [
+        "man",
+        "woman",
+        "couple"
+      ],
+      "prompt": "Warm memory. Same couple walking together along a quiet tree-lined path after rain, shoulder to shoulder, her burgundy scarf and hair moving in the wind, their hands occasionally touching. Gentle tracking camera, shallow depth, natural chemistry, no campus imagery.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "08",
+      "start": 83,
+      "end": 96,
+      "file": "08-reflection-memory.mp4",
+      "references": [
+        "man",
+        "woman"
+      ],
+      "prompt": "Cold present. Same man pauses at a dark shop or apartment window and for one fleeting second sees the same woman's reflection beside his own, then only himself remains as leaves pass in the wind. Subtle realistic reflection effect, slow camera drift, no supernatural glow.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "09",
+      "start": 95,
+      "end": 108,
+      "file": "09-touch-memory.mp4",
+      "references": [
+        "man",
+        "woman",
+        "couple"
+      ],
+      "prompt": "Warm intimate memory. Same woman gently places her hand on the same man's shoulder while they stand by the rain-streaked apartment window; he turns toward her and they share a quiet look. Emphasize believable hands and touch, slow close dolly, warm fireplace spill.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "10",
+      "start": 107,
+      "end": 119,
+      "file": "10-run-to-door.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Cold present. Same man suddenly hears a faint sound from the apartment door, looks up, hope flashes across his face, then he quickly walks and breaks into a short run down the hallway toward the door. Smooth urgent follow camera, natural body mechanics, realistic indoor lighting.",
+      "playbackRate": 0.83
+    },
+    {
+      "id": "11",
+      "start": 118,
+      "end": 130,
+      "file": "11-empty-doorway.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "He opens the apartment door expecting her, but the corridor is completely empty. Same man stands still in the doorway, breathing, hope collapsing quietly. Camera moves past his shoulder into the empty corridor then back to him. Cold blue-gray realism, no ghost or apparition.",
+      "playbackRate": 0.83
+    },
+    {
+      "id": "12",
+      "start": 129,
+      "end": 141.5,
+      "file": "12-scent-scarf-room.mp4",
+      "references": [
+        "man",
+        "woman"
+      ],
+      "prompt": "Back inside the room. Same man notices the woman's deep burgundy scarf left near the window, lifts it gently and closes his eyes as if recognizing her scent. A very brief warm memory of her passing behind him is suggested only through soft focus, then disappears. Controlled close camera, realistic cloth motion.",
+      "playbackRate": 0.8
+    },
+    {
+      "id": "13",
+      "start": 140.5,
+      "end": 153.5,
+      "file": "13-hands-memory.mp4",
+      "references": [
+        "man",
+        "woman",
+        "couple"
+      ],
+      "prompt": "Warm memory centered on hands. Same man and woman sit near the fireplace; their hands find each other and interlace naturally, then camera tilts up just enough to see their familiar faces. Detailed anatomically correct hands, amber light, intimate stillness, slow dolly.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "14",
+      "start": 152.5,
+      "end": 165.5,
+      "file": "14-empty-hands.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Match-cut to cold present: same man's hands are now empty in the same position. He slowly closes them, then lets them rest on his knees. Empty chair soft in background, rain easing outside. Very restrained performance, slow pull-back, blue-gray palette.",
+      "playbackRate": 0.77
+    },
+    {
+      "id": "15",
+      "start": 164.5,
+      "end": 177,
+      "file": "15-embrace-to-empty.mp4",
+      "references": [
+        "man",
+        "woman",
+        "couple"
+      ],
+      "prompt": "Emotional climax without reunion. Warm memory of the same couple embracing naturally near the window, then match dissolve to cold present where the same man is standing in the same place alone with his arms lowered. Rain begins to stop. Elegant slow orbit, realistic transition, no melodramatic crying.",
+      "playbackRate": 0.8
+    },
+    {
+      "id": "16",
+      "start": 176,
+      "end": 184.045283,
+      "file": "16-dawn-acceptance.mp4",
+      "references": [
+        "man"
+      ],
+      "prompt": "Quiet ending at dawn. Rain has stopped. Same man places the burgundy scarf carefully on the empty chair by the window, takes one last look at the room, opens the door and walks out into pale morning light. No reunion. Static-to-slow dolly-back camera, restrained acceptance, photorealistic.",
+      "playbackRate": 1
+    }
+  ]
+}
