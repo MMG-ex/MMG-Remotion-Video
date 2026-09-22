@@ -1,0 +1,55 @@
+name: Read Wan Model Probe
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/wan-model-result-trigger"]
+
+permissions:
+  contents: read
+
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-wan-files-probe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize token
+        shell: bash
+        run: |
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+      - name: Install Kaggle CLI
+        run: python -m pip install -q -U kaggle
+      - name: Detect username
+        shell: bash
+        run: |
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+      - name: Poll and print logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          K="${KAGGLE_USERNAME}/${KERNEL_SLUG}"
+          for i in {1..30}; do
+            S="$(kaggle kernels status "$K" 2>&1 || true)"
+            echo "$S"
+            L="$(printf '%s' "$S" | tr '[:upper:]' '[:lower:]')"
+            if echo "$L" | grep -Eq 'complete|error|failed'; then
+              break
+            fi
+            sleep 10
+          done
+          kaggle kernels logs "$K" || true
