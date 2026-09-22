@@ -1,0 +1,226 @@
+name: Son Yaprak FREE AI Video Pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: son-yaprak-free-ai-video
+  cancel-in-progress: false
+
+jobs:
+  orchestrate:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.KAGGLE_USERNAME != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+
+    env:
+      TARGET_BRANCH: son-yaprak-ai-video-free
+      KAGGLE_USERNAME: ${{ vars.KAGGLE_USERNAME }}
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-ai-video
+
+    steps:
+      - name: AI-video dalını indir
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Kaggle ayarını doğrula
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${KAGGLE_USERNAME:-}" ]; then
+            echo "::error::Repository variable KAGGLE_USERNAME eksik."
+            exit 2
+          fi
+          if [ -z "${KAGGLE_API_TOKEN:-}" ]; then
+            echo "::error::Repository secret KAGGLE_API_TOKEN eksik."
+            exit 2
+          fi
+
+      - name: Kaggle CLI kur
+        run: python -m pip install -q -U kaggle
+
+      - name: GPU kotasını raporla
+        continue-on-error: true
+        run: |
+          echo "=== KAGGLE ACCELERATOR QUOTA ==="
+          kaggle quota --format json || kaggle quota --csv || true
+
+      - name: Mevcut Kaggle işini kontrol et
+        id: status
+        shell: bash
+        run: |
+          set -uo pipefail
+          KERNEL="${KAGGLE_USERNAME}/${KERNEL_SLUG}"
+          STATUS_TEXT="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+          echo "$STATUS_TEXT"
+          LOW="$(printf '%s' "$STATUS_TEXT" | tr '[:upper:]' '[:lower:]')"
+
+          if echo "$LOW" | grep -Eq "running|queued|pending"; then
+            echo "busy=true" >> "$GITHUB_OUTPUT"
+            echo "collect=false" >> "$GITHUB_OUTPUT"
+          elif echo "$LOW" | grep -Eq "complete|success"; then
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+            echo "collect=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+            echo "collect=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Çalışan Kaggle işi varsa bekle
+        if: steps.status.outputs.busy == 'true'
+        run: |
+          echo "Kaggle üretimi hâlâ çalışıyor. Bu turda yeni iş başlatılmayacak."
+
+      - name: Tamamlanan Kaggle çıktısını indir
+        if: steps.status.outputs.busy != 'true' && steps.status.outputs.collect == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/kaggle-output
+          mkdir -p /tmp/kaggle-output public/generated ai-video/reports
+          kaggle kernels output "${KAGGLE_USERNAME}/${KERNEL_SLUG}" -p /tmp/kaggle-output -o
+
+          find /tmp/kaggle-output -type f -name 'scene-*.mp4' -print -exec cp -f {} public/generated/ \;
+          if [ -f /tmp/kaggle-output/generation-report.json ]; then
+            cp -f /tmp/kaggle-output/generation-report.json "ai-video/reports/report-$(date -u +%Y%m%dT%H%M%SZ).json"
+          fi
+
+          git config user.name "MMG AI Video Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/generated ai-video/reports
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Collect real AI video clips from Kaggle"
+            git push origin "HEAD:${TARGET_BRANCH}"
+          else
+            echo "Yeni klip yok."
+          fi
+
+      - name: Eksik sahneleri say
+        if: steps.status.outputs.busy != 'true'
+        id: missing
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path("ai-video/scenes.json").read_text(encoding="utf-8"))
+          missing = [s["id"] for s in manifest["scenes"] if not Path("public/generated", s["id"] + ".mp4").exists()]
+          print("Eksik sahneler:", missing)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"count={len(missing)}\n")
+              f.write("ids=" + ",".join(missing) + "\n")
+          PY
+
+      - name: Sıradaki Kaggle batch'ini başlat
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf kaggle/runtime
+          mkdir -p kaggle/runtime
+          cp kaggle/kernel.py kaggle/runtime/kernel.py
+
+          cat > kaggle/runtime/kernel-metadata.json <<JSON
+          {
+            "id": "${KAGGLE_USERNAME}/${KERNEL_SLUG}",
+            "title": "Son Yaprak AI Video",
+            "code_file": "kernel.py",
+            "language": "python",
+            "kernel_type": "script",
+            "is_private": true,
+            "enable_gpu": true,
+            "enable_internet": true,
+            "machine_shape": "NvidiaTeslaT4"
+          }
+          JSON
+
+          echo "Başlatılacak eksik sahneler: ${{ steps.missing.outputs.ids }}"
+          kaggle kernels push -p kaggle/runtime --accelerator NvidiaTeslaT4
+          echo "Kaggle batch gönderildi. Sonraki schedule turu durumunu kontrol edecek."
+
+      - name: Final render hazırlığı
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg unzip
+          unzip -o assets/son-yaprak-assets.zip -d .
+          test -s public/audio/son-yaprak-master-320.mp3
+          test "$(find public/generated -maxdepth 1 -name 'scene-*.mp4' | wc -l)" -ge 30
+
+      - name: Node.js kur
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Remotion paketlerini kur
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        run: npm install --no-audit --no-fund
+
+      - name: Gerçek AI-video finalini render et
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          npx remotion render src/index.ts Visualizer out/Son_Yaprak_AI_Video_Final_1080p.mp4 \
+            --codec=h264 --audio-codec=aac --audio-bitrate=320k --crf=18 --overwrite
+
+          test -s out/Son_Yaprak_AI_Video_Final_1080p.mp4
+          VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 out/Son_Yaprak_AI_Video_Final_1080p.mp4 | tr -d '\r\n')"
+          AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 out/Son_Yaprak_AI_Video_Final_1080p.mp4 | tr -d '\r\n')"
+          DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/Son_Yaprak_AI_Video_Final_1080p.mp4 | tr -d '\r\n')"
+          echo "video=$VIDEO_CODEC audio=$AUDIO_CODEC duration=$DURATION"
+          test "$VIDEO_CODEC" = "h264"
+          test "$AUDIO_CODEC" = "aac"
+          awk "BEGIN { exit !($DURATION >= 226.5 && $DURATION <= 227.7) }"
+
+      - name: Final MP4 artifact
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Son-Yaprak-AI-Video-Final-1080p
+          path: out/Son_Yaprak_AI_Video_Final_1080p.mp4
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Final MP4 GitHub Release
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="son-yaprak-ai-video-v1"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/Son_Yaprak_AI_Video_Final_1080p.mp4 --clobber
+          else
+            gh release create "$TAG" out/Son_Yaprak_AI_Video_Final_1080p.mp4 \
+              --target "${TARGET_BRANCH}" \
+              --title "Son Yaprak — AI Video Final 1080p" \
+              --notes "Söz: M. Murat Güvenoğlu | Müzik: Suno.com | Gerçek hareketli AI sahneleri + Remotion final."
+          fi
+
+      - name: Final işaretini kaydet
+        if: steps.status.outputs.busy != 'true' && steps.missing.outputs.count == '0' && hashFiles('ai-video/FINAL_COMPLETE') == ''
+        shell: bash
+        run: |
+          printf 'Final render completed at %s UTC\n' "$(date -u +'%Y-%m-%d %H:%M:%S')" > ai-video/FINAL_COMPLETE
+          git config user.name "MMG AI Video Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add ai-video/FINAL_COMPLETE
+          git commit -m "Mark Son Yaprak real AI video final complete"
+          git push origin "HEAD:${TARGET_BRANCH}"
