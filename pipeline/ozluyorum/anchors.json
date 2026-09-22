@@ -1,0 +1,86 @@
+{
+  "project": "ÖZLÜYORUM",
+  "version": "V3-AI-CINEMATIC",
+  "anchors": [
+    {
+      "id": "A1",
+      "name": "present-fireplace",
+      "taskId": "446eecd4-e196-48ce-953f-edfb0da85490",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/446eecd4-e196-48ce-953f-edfb0da85490/e5ac7388-3ab9-40b6-a601-fa024d3e361d/_man_in_the_recurring_modest_lived_in_apartment_at_night__Ra.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiOTU5NWQyNWY1NGMxZjVhNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDI1NzUwM30.f0nEsw3gQf_xkfRQ3jfBU0tbDEQph7hpXqL47QKmhAM",
+      "scenes": [
+        "01",
+        "03",
+        "14"
+      ]
+    },
+    {
+      "id": "A2",
+      "name": "memory-fireplace-couple",
+      "taskId": "7f053dc3-efca-4833-b436-0a0a6fa15d04",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/7f053dc3-efca-4833-b436-0a0a6fa15d04/cb86b945-abb2-4311-aff3-b638c35f90ca/_couple_in_the_exact_same_modest_apartment_by_the_same_rain_.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiN2QzN2VhYzI2MjJmMDNhNCIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDIwODU3OH0.O3cEmkyyPykC_rN72dDoI46gXqEyXeEK9uGZdR6zAmc",
+      "scenes": [
+        "02",
+        "09",
+        "15"
+      ]
+    },
+    {
+      "id": "A3",
+      "name": "photo-clock",
+      "taskId": "d7074137-fb96-4dba-a5fa-7e63d0af4580",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/d7074137-fb96-4dba-a5fa-7e63d0af4580/c3504303-df12-4b55-9165-52e8d72a841e/_man_seated_alone_at_a_small_table_in_the_recurring_apartmen.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiYjNkNDAxYmIwOGJjODY2OSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDIyMjEzOX0.YfoxI2jLzq-NKZv51XVhS7PCfZBwyfBQUyzWzoxYKB0",
+      "scenes": [
+        "04"
+      ]
+    },
+    {
+      "id": "A4",
+      "name": "her-smile-wind",
+      "taskId": "4d4e10c1-b7e4-4903-89c7-72fc6cf973fa",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/4d4e10c1-b7e4-4903-89c7-72fc6cf973fa/468aae5a-daef-435c-8a4c-94b0b80df4a3/_woman_outdoors_after_rain_in_a_quiet_tree_lined_neighborhoo.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMWUxMjY2OWM3OWQxYWFjZiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDI0MDc5Nn0.f8_gr6l-CPvhGklG4U4HmpuulmLxUtQblpqdUL-swRQ",
+      "scenes": [
+        "05",
+        "06",
+        "07",
+        "08"
+      ]
+    },
+    {
+      "id": "A5",
+      "name": "run-to-door",
+      "taskId": "68b74aa1-8190-4d28-9725-f1c2a5c2abe2",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/68b74aa1-8190-4d28-9725-f1c2a5c2abe2/7506b014-4424-4279-820a-2e7b1f302d32/_man_in_the_recurring_apartment_hallway_at_night__mid_motion.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiOWQ4Y2Y3Y2M0ODA2MWFmNyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDIzNDE4OH0.BaPQPyyqnYDum2jRIrN7jo0RThofoBLXABA4DX4EudY",
+      "scenes": [
+        "10",
+        "11"
+      ]
+    },
+    {
+      "id": "A6",
+      "name": "scarf-scent",
+      "taskId": "28c8ff64-cc87-4ffc-ad97-708122e93ec5",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/28c8ff64-cc87-4ffc-ad97-708122e93ec5/efff142a-7946-4e9b-8784-775ba95b1427/_man_back_inside_the_recurring_apartment__gently_holding_the.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiZTVlYzJiMDM4ZDhiYjI0MiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDI1MzU3MX0.Qz54Tlpb3lv2S5kGcNSgS571SwCx9v9-nwVeZAyu9VQ",
+      "scenes": [
+        "12"
+      ]
+    },
+    {
+      "id": "A7",
+      "name": "hands-memory",
+      "taskId": "64467304-b43d-475b-ba76-573d1e7e7abd",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/64467304-b43d-475b-ba76-573d1e7e7abd/c7a7ae37-57b6-4a21-825c-d487a4438b55/Close_cinematic_memory_of__couple_sitting_by_the_fireplace_i.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMThhZjdmMzk4N2I2ZDljZiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDI0NzM1M30.s1q6TbjyrRQtT4mvNRzgmapSc3IkkNhNpNAAqx8z26E",
+      "scenes": [
+        "13"
+      ]
+    },
+    {
+      "id": "A8",
+      "name": "dawn-acceptance",
+      "taskId": "b37f5fde-d022-40cb-8f91-c241c892a76a",
+      "url": "https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-image/images/b37f5fde-d022-40cb-8f91-c241c892a76a/ad59d528-f434-4ef5-aed6-33fcd1670a61/_man_in_the_recurring_apartment_at_pale_dawn_after_rain__He_.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMTQzOTEyZDc2YzA2NDMwOSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDE5OTg5NX0.9Jet6ds4uU17ag_kbFqrmjuX-A6PBqZAvuhmoJ-zHvU",
+      "scenes": [
+        "16"
+      ]
+    }
+  ]
+}
