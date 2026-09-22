@@ -1,0 +1,220 @@
+{
+  "project": "SON YAPRAK",
+  "model": "zai-org/CogVideoX-2b",
+  "generatedClipSeconds": 6,
+  "finalSlotSeconds": 8,
+  "overlapSeconds": 0.45,
+  "outputFps": 8,
+  "scenes": [
+    {
+      "id": "scene-001",
+      "section": "Intro",
+      "source": "images/01-window.jpg",
+      "seed": 1101,
+      "prompt": "Night rain runs down a large apartment window. A solitary adult figure stands near the glass, breathing softly while distant city lights shimmer and moving cars create reflections. Slow cinematic push toward the window, realistic raindrops sliding and merging on the glass."
+    },
+    {
+      "id": "scene-002",
+      "section": "Intro",
+      "source": "images/01-window.jpg",
+      "seed": 1102,
+      "prompt": "Inside a dim room at night, a lonely figure gently touches a rain-covered window. Fingers move naturally, condensation shifts, raindrops trail downward, city lights outside flicker and traffic passes. Slow handheld camera drift, intimate melancholy."
+    },
+    {
+      "id": "scene-003",
+      "section": "Verse 1",
+      "source": "images/02-street.jpg",
+      "seed": 1201,
+      "prompt": "A solitary adult in a dark charcoal coat walks slowly along a wet city street at night. Coat fabric moves in the wind, shoes splash through shallow puddles, passing headlights sweep across the pavement, realistic rain falls continuously. Tracking shot from behind."
+    },
+    {
+      "id": "scene-004",
+      "section": "Verse 1",
+      "source": "images/02-street.jpg",
+      "seed": 1202,
+      "prompt": "The same lonely figure crosses an almost empty rain-soaked street. A bus passes in the background, streetlights glow through mist, reflections ripple under footsteps, the figure turns their head slightly as wind moves the coat. Smooth side tracking camera."
+    },
+    {
+      "id": "scene-005",
+      "section": "Verse 1",
+      "source": "images/03-key.jpg",
+      "seed": 1301,
+      "prompt": "Close cinematic shot of a human hand slowly picking up an old metal key beside a fallen autumn leaf on a wooden table. Fingers curl naturally around the key, the leaf trembles from a soft draft, shallow depth of field shifts focus from key to hand."
+    },
+    {
+      "id": "scene-006",
+      "section": "Verse 1",
+      "source": "images/03-key.jpg",
+      "seed": 1302,
+      "prompt": "A hand opens slowly to reveal an old key and a small dried leaf. The key swings gently from the fingers, warm window light moves across the metal, dust particles drift in the air, the camera makes a subtle orbit around the hand."
+    },
+    {
+      "id": "scene-007",
+      "section": "Pre-Chorus",
+      "source": "images/04-door.jpg",
+      "seed": 1401,
+      "prompt": "A person in a dark coat lifts an old suitcase, opens an apartment door and slowly walks into a dim corridor. The door moves naturally on its hinges, the suitcase swings with each step, curtains behind move in a draft. Cinematic dolly backward."
+    },
+    {
+      "id": "scene-008",
+      "section": "Pre-Chorus",
+      "source": "images/04-door.jpg",
+      "seed": 1402,
+      "prompt": "From inside a quiet apartment, a lonely figure pauses at an open doorway with a suitcase, looks back once, then turns and leaves. The door slowly closes behind them, warm room light narrows into darkness. Natural body motion, restrained emotional acting."
+    },
+    {
+      "id": "scene-009",
+      "section": "Pre-Chorus",
+      "source": "images/05-bus.jpg",
+      "seed": 1501,
+      "prompt": "A city bus moves through heavy night rain. Through the window, a seated passenger watches blurred lights streak past. Raindrops race across the glass, the bus gently rocks, passing cars and neon reflections move continuously. Slow camera push toward the passenger."
+    },
+    {
+      "id": "scene-010",
+      "section": "Pre-Chorus",
+      "source": "images/05-bus.jpg",
+      "seed": 1502,
+      "prompt": "Inside a moving night bus, a solitary passenger looks out the rain-covered window while streetlights flow past. Their reflection shifts on the glass, hands move slightly on their lap, the vehicle vibrates realistically, wet roads shine outside."
+    },
+    {
+      "id": "scene-011",
+      "section": "Chorus",
+      "source": "images/06-puddle.jpg",
+      "seed": 1601,
+      "prompt": "Autumn leaves fall into a large rain puddle on a dark street. Raindrops create expanding ripples, a pair of shoes walks past and splashes water naturally, leaves spin and drift across the surface. Low camera close to the ground."
+    },
+    {
+      "id": "scene-012",
+      "section": "Chorus",
+      "source": "images/06-puddle.jpg",
+      "seed": 1602,
+      "prompt": "A yellow leaf floats in a rain puddle as water ripples constantly. A human hand briefly reaches toward it but pulls back, another leaf falls into frame, reflected city lights distort with each raindrop. Slow crane movement upward."
+    },
+    {
+      "id": "scene-013",
+      "section": "Chorus",
+      "source": "images/07-pier.jpg",
+      "seed": 1701,
+      "prompt": "A solitary figure in a dark coat walks along a windy seaside pier at dusk. Waves move strongly below, coat and hair move in the wind, distant birds cross the sky, the camera follows from several meters behind with realistic handheld motion."
+    },
+    {
+      "id": "scene-014",
+      "section": "Chorus",
+      "source": "images/07-pier.jpg",
+      "seed": 1702,
+      "prompt": "On a cold pier at blue hour, a lonely figure stops at the railing and looks over moving water. Wind pushes the coat, waves break against the structure, clouds drift rapidly, the camera slowly orbits from behind toward a side profile."
+    },
+    {
+      "id": "scene-015",
+      "section": "Chorus",
+      "source": "images/07-pier.jpg",
+      "seed": 1703,
+      "prompt": "A wide cinematic view of a person walking away along an empty pier as the sea moves under a darkening sky. Wind lifts loose fabric, gulls fly across the frame, distant boat lights move slowly, steady crane camera rising."
+    },
+    {
+      "id": "scene-016",
+      "section": "Interlude",
+      "source": "images/08-daisy.jpg",
+      "seed": 1801,
+      "prompt": "Macro cinematic shot of a daisy moving gently in the wind beside an old notebook. A human hand touches one petal carefully, the petal bends and springs back, pages of the notebook flutter softly, warm natural light shifts across the scene."
+    },
+    {
+      "id": "scene-017",
+      "section": "Interlude",
+      "source": "images/08-daisy.jpg",
+      "seed": 1802,
+      "prompt": "A hand slowly removes one dried petal from a daisy and lets it fall onto an open notebook. The petal turns in the air and lands naturally, paper pages move in a breeze, shallow focus follows the falling petal."
+    },
+    {
+      "id": "scene-018",
+      "section": "Verse 2",
+      "source": "images/09-suitcase.jpg",
+      "seed": 1901,
+      "prompt": "Close shot of an old suitcase on the floor. A person closes the clasps one by one, grips the handle and lifts it. The leather flexes, the hand and fingers move naturally, nearby curtain fabric sways, camera slowly pushes closer."
+    },
+    {
+      "id": "scene-019",
+      "section": "Verse 2",
+      "source": "images/09-suitcase.jpg",
+      "seed": 1902,
+      "prompt": "A lonely traveler carries an old suitcase down a quiet hallway. The suitcase moves with each step, overhead lights pass across the figure, shadows slide along the walls, the camera follows at waist height with subtle handheld motion."
+    },
+    {
+      "id": "scene-020",
+      "section": "Verse 2",
+      "source": "images/11-room.jpg",
+      "seed": 2101,
+      "prompt": "A nearly empty room at dusk. A person slowly walks out of frame through the doorway, a curtain moves in the wind, dust drifts through a beam of light and a small lamp flickers once. The camera remains still while the room becomes empty."
+    },
+    {
+      "id": "scene-021",
+      "section": "Verse 2",
+      "source": "images/11-room.jpg",
+      "seed": 2102,
+      "prompt": "An abandoned quiet room with an open window. Curtains breathe in the wind, loose papers slide gently across a desk, tree shadows move over the wall, distant rain is visible outside. Slow cinematic dolly through the room."
+    },
+    {
+      "id": "scene-022",
+      "section": "Build",
+      "source": "images/02-street.jpg",
+      "seed": 1203,
+      "prompt": "In stronger rain, a solitary figure walks faster through a dark street, then stops under a streetlight and looks upward. Water runs from the coat, traffic passes behind, puddles splash, the camera circles slowly around the person."
+    },
+    {
+      "id": "scene-023",
+      "section": "Build",
+      "source": "images/02-street.jpg",
+      "seed": 1204,
+      "prompt": "A lonely figure walks against wind and rain on an empty road. The coat flaps strongly, tree branches sway, headlights approach and pass, the person keeps moving forward with natural determined steps. Low-angle tracking shot."
+    },
+    {
+      "id": "scene-024",
+      "section": "Final Chorus",
+      "source": "images/10-train.jpg",
+      "seed": 2001,
+      "prompt": "A passenger train slowly pulls into a rainy station platform. A solitary traveler with a suitcase steps back from the edge, clothing moves in the wind, headlights brighten the wet platform, wheels and reflections move realistically. Cinematic side shot."
+    },
+    {
+      "id": "scene-025",
+      "section": "Final Chorus",
+      "source": "images/10-train.jpg",
+      "seed": 2002,
+      "prompt": "A train begins to leave a dim station. Through a window, a passenger looks back while the platform slides away. Steam and rain drift through the lights, the train accelerates naturally, the camera tracks alongside for a moment then falls behind."
+    },
+    {
+      "id": "scene-026",
+      "section": "Final Chorus",
+      "source": "images/07-pier.jpg",
+      "seed": 1704,
+      "prompt": "At the seaside before dawn, a solitary figure walks toward the end of a pier while strong wind moves their coat and the waves. The sky slowly brightens, birds cross overhead, camera follows then gently cranes upward into a wide view."
+    },
+    {
+      "id": "scene-027",
+      "section": "Final",
+      "source": "images/08-daisy.jpg",
+      "seed": 1803,
+      "prompt": "A single dry leaf and daisy petal are lifted by the wind from an open notebook. They tumble realistically through the air toward an open window while sunlight grows warmer. The camera follows the floating leaf in slow motion."
+    },
+    {
+      "id": "scene-028",
+      "section": "Final",
+      "source": "images/12-dawn.jpg",
+      "seed": 2201,
+      "prompt": "At dawn, a solitary person walks along a quiet path toward a bright horizon. Grass moves in the morning wind, birds rise from the distance, mist drifts across the ground, sunlight gradually intensifies. Smooth tracking shot from behind."
+    },
+    {
+      "id": "scene-029",
+      "section": "Outro",
+      "source": "images/12-dawn.jpg",
+      "seed": 2202,
+      "prompt": "Wide cinematic sunrise over a quiet shoreline. A lone figure becomes smaller while walking away, waves move gently, clouds drift, warm light spreads across the water and birds cross the sky. Slow crane upward and backward."
+    },
+    {
+      "id": "scene-030",
+      "section": "Outro",
+      "source": "images/12-dawn.jpg",
+      "seed": 2203,
+      "prompt": "A final calm dawn shot: a single autumn leaf blows across a sunlit path as a distant figure continues walking toward the horizon. Trees and grass move in the breeze, soft morning haze shifts, the camera slowly pulls back until the figure is tiny."
+    }
+  ]
+}
