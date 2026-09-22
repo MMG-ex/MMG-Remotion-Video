@@ -1,0 +1,102 @@
+name: MMG Song Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/analyze-song.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: FFmpeg ve Python hazırla
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg curl
+          python -m pip install --upgrade pip
+          pip install faster-whisper
+
+      - name: Şarkıyı indir
+        run: |
+          mkdir -p analysis
+          curl --fail --location --retry 4 --retry-delay 5 \
+            "https://cdn.openart.ai/openart-uploads/production/attachment-transfers/f81400d9be2b11bbe0576720c3c49e191f5caa85b418b2a54d089bc9745d2b3f.wav" \
+            -o "analysis/ozluyorum.wav"
+          test -s "analysis/ozluyorum.wav"
+
+      - name: Vokali transkripsiyona hazırla
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -i "analysis/ozluyorum.wav" \
+            -af "highpass=f=100,lowpass=f=8000,loudnorm=I=-16:TP=-1.5:LRA=11" \
+            -ac 1 -ar 16000 "analysis/ozluyorum-vocal-ready.wav"
+
+      - name: Whisper ile zaman kodlu sözleri çıkar
+        run: |
+          cat > analysis/transcribe.py <<'PY'
+          from faster_whisper import WhisperModel
+          import json
+
+          model = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8")
+          segments, info = model.transcribe(
+              "analysis/ozluyorum-vocal-ready.wav",
+              language="tr",
+              beam_size=5,
+              vad_filter=True,
+              word_timestamps=True,
+              condition_on_previous_text=True,
+          )
+
+          out = {
+              "language": info.language,
+              "language_probability": info.language_probability,
+              "segments": [],
+          }
+
+          txt = []
+          for s in segments:
+              seg = {
+                  "start": round(s.start, 3),
+                  "end": round(s.end, 3),
+                  "text": s.text.strip(),
+                  "words": [],
+              }
+              if s.words:
+                  seg["words"] = [
+                      {
+                          "start": None if w.start is None else round(w.start, 3),
+                          "end": None if w.end is None else round(w.end, 3),
+                          "word": w.word,
+                          "probability": round(w.probability, 4),
+                      }
+                      for w in s.words
+                  ]
+              out["segments"].append(seg)
+              if seg["text"]:
+                  txt.append(f"[{seg['start']:07.3f}-{seg['end']:07.3f}] {seg['text']}")
+
+          with open("analysis/ozluyorum-transcript.json", "w", encoding="utf-8") as f:
+              json.dump(out, f, ensure_ascii=False, indent=2)
+          with open("analysis/ozluyorum-transcript.txt", "w", encoding="utf-8") as f:
+              f.write("\n".join(txt))
+          PY
+          python analysis/transcribe.py
+          cat analysis/ozluyorum-transcript.txt
+
+      - name: Analiz artefaktını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ozluyorum-song-analysis
+          path: |
+            analysis/ozluyorum-transcript.txt
+            analysis/ozluyorum-transcript.json
+          if-no-files-found: error
+          retention-days: 7
