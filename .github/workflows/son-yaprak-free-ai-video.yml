@@ -102,12 +102,19 @@ jobs:
           if echo "$LOW" | grep -Eq "running|queued|pending"; then
             echo "busy=true" >> "$GITHUB_OUTPUT"
             echo "collect=false" >> "$GITHUB_OUTPUT"
+            echo "errored=false" >> "$GITHUB_OUTPUT"
           elif echo "$LOW" | grep -Eq "complete|success"; then
             echo "busy=false" >> "$GITHUB_OUTPUT"
             echo "collect=true" >> "$GITHUB_OUTPUT"
+            echo "errored=false" >> "$GITHUB_OUTPUT"
+          elif echo "$LOW" | grep -Eq "error|failed"; then
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+            echo "collect=false" >> "$GITHUB_OUTPUT"
+            echo "errored=true" >> "$GITHUB_OUTPUT"
           else
             echo "busy=false" >> "$GITHUB_OUTPUT"
             echo "collect=false" >> "$GITHUB_OUTPUT"
+            echo "errored=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Çalışan Kaggle işi varsa bekle
@@ -115,8 +122,18 @@ jobs:
         run: |
           echo "Kaggle üretimi hâlâ çalışıyor. Bu turda yeni iş başlatılmayacak."
 
+      - name: Kaggle ERROR logunu göster
+        if: steps.status.outputs.errored == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          echo "=== KAGGLE KERNEL LOG ==="
+          kaggle kernels logs "${KAGGLE_USERNAME}/${KERNEL_SLUG}" || true
+          echo "::error::Kaggle kernel ERROR durumunda. Yukarıdaki log düzeltilmeden yeni batch başlatılmayacak."
+          exit 5
+
       - name: Tamamlanan Kaggle çıktısını indir
-        if: steps.status.outputs.busy != 'true' && steps.status.outputs.collect == 'true'
+        if: steps.status.outputs.busy != 'true' && steps.status.outputs.errored != 'true' && steps.status.outputs.collect == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -141,7 +158,7 @@ jobs:
           fi
 
       - name: Eksik sahneleri say
-        if: steps.status.outputs.busy != 'true'
+        if: steps.status.outputs.busy != 'true' && steps.status.outputs.errored != 'true'
         id: missing
         shell: bash
         run: |
