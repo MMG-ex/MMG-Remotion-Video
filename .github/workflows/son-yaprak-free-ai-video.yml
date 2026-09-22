@@ -157,7 +157,7 @@ jobs:
           fi
 
       - name: Eksik sahneleri say
-        if: steps.status.outputs.busy != 'true' && steps.status.outputs.errored != 'true'
+        if: steps.status.outputs.busy != 'true'
         id: missing
         shell: bash
         run: |
