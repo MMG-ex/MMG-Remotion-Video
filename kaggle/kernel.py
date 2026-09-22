@@ -5,13 +5,8 @@ import json
 import os
 import subprocess
 import sys
-import urllib.request
 from pathlib import Path
 
-REPO = "MMG-ex/MMG-Remotion-Video"
-BRANCH = "son-yaprak-ai-video-free"
-MANIFEST_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/ai-video/scenes.json"
-CONTENTS_URL = f"https://api.github.com/repos/{REPO}/contents/public/generated?ref={BRANCH}"
 BATCH_SIZE = 5
 WORK = Path("/kaggle/working")
 OUT = WORK / "generated"
@@ -29,20 +24,14 @@ NEGATIVE = (
     "cartoon, illustration, oversaturated colors, low detail"
 )
 
-def fetch_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "MMG-Son-Yaprak-Kaggle"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.loads(r.read().decode("utf-8"))
+manifest_path = Path("/kaggle/working/scenes.json")
+if not manifest_path.exists():
+    manifest_path = Path("scenes.json")
+if not manifest_path.exists():
+    raise FileNotFoundError("scenes.json was not bundled with this Kaggle run")
 
-manifest = fetch_json(MANIFEST_URL)
-try:
-    existing_data = fetch_json(CONTENTS_URL)
-    existing = {item["name"].replace(".mp4", "") for item in existing_data if item.get("name", "").endswith(".mp4")}
-except Exception:
-    existing = set()
-
-pending = [s for s in manifest["scenes"] if s["id"] not in existing]
-batch = pending[:BATCH_SIZE]
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+batch = manifest.get("scenes", [])[:BATCH_SIZE]
 
 if not batch:
     (WORK / "generation-report.json").write_text(json.dumps({"status":"complete","generated":[]}, indent=2), encoding="utf-8")
