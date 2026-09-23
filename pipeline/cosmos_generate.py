@@ -181,6 +181,8 @@ def main() -> None:
     ap.add_argument("--fps", type=int, default=24)
     ap.add_argument("--steps", type=int, default=35)
     ap.add_argument("--request-timeout", type=int, default=900)
+    ap.add_argument("--scene-id", action="append", default=[])
+    ap.add_argument("--report", default="out/cosmos-generation-report.json")
     args = ap.parse_args()
 
     api_key = os.environ.get("NVIDIA_API_KEY", "").strip()
@@ -189,6 +191,14 @@ def main() -> None:
 
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
     scenes = manifest["scenes"]
+    if args.scene_id:
+        wanted = set(args.scene_id)
+        scenes = [s for s in scenes if s["id"] in wanted]
+        missing = wanted - {s["id"] for s in scenes}
+        if missing:
+            raise SystemExit(f"Unknown scene id(s): {sorted(missing)}")
+    if not scenes:
+        raise SystemExit("No scenes selected")
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -209,8 +219,9 @@ def main() -> None:
         "fps": args.fps,
         "results": results,
     }
-    Path("out").mkdir(exist_ok=True)
-    Path("out/cosmos-generation-report.json").write_text(
+    report_path = Path(args.report)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     failed = [r for r in results if r["status"] == "failed"]
