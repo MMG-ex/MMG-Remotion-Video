@@ -7,11 +7,19 @@ type Props = {
   src: string;
   name: string;
   fps: number;
+  playbackRate?: number;
+  fadeSeconds?: number;
 };
 
-const ShotBody: React.FC<Omit<Props, "from" | "name">> = ({durationInFrames, src, fps}) => {
+const ShotBody: React.FC<Omit<Props, "from" | "name">> = ({
+  durationInFrames,
+  src,
+  fps,
+  playbackRate = 0.765,
+  fadeSeconds = 0.45,
+}) => {
   const frame = useCurrentFrame();
-  const fadeFrames = Math.max(8, Math.round(fps * 0.45));
+  const fadeFrames = Math.max(6, Math.round(fps * fadeSeconds));
   const opacity = interpolate(
     frame,
     [0, fadeFrames, Math.max(fadeFrames + 1, durationInFrames - fadeFrames), durationInFrames - 1],
@@ -24,7 +32,7 @@ const ShotBody: React.FC<Omit<Props, "from" | "name">> = ({durationInFrames, src
       <OffthreadVideo
         src={staticFile(src)}
         muted
-        playbackRate={0.765}
+        playbackRate={playbackRate}
         style={{
           width: "100%",
           height: "100%",
