@@ -1,0 +1,184 @@
+name: Son Yaprak COSMOS 3 Real AI Video
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - son-yaprak-cosmos3
+    paths:
+      - ".github/workflows/son-yaprak-cosmos3.yml"
+      - "pipeline/cosmos_generate.py"
+      - "src/CosmosClip/**"
+      - "src/Generated/GeneratedVideoShot.tsx"
+      - "src/Root.tsx"
+      - "ai-video/cosmos3-trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: son-yaprak-cosmos3
+  cancel-in-progress: false
+
+jobs:
+  generate-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+
+    steps:
+      - name: Checkout Cosmos branch
+        uses: actions/checkout@v4
+        with:
+          ref: son-yaprak-cosmos3
+          fetch-depth: 1
+
+      - name: Validate NVIDIA API key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${NVIDIA_API_KEY:-}" || {
+            echo "::error::Repository secret NVIDIA_API_KEY eksik."
+            exit 2
+          }
+          echo "::add-mask::$NVIDIA_API_KEY"
+
+      - name: Install runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg unzip
+          python -m pip install -q -U requests
+
+      - name: Extract Son Yaprak reference assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -o assets/son-yaprak-assets.zip -d .
+          test -s public/audio/son-yaprak-master-320.mp3
+          test -s public/images/01-window.jpg
+          test -s public/images/12-dawn.jpg
+
+      - name: Generate 30 Cosmos3-Nano image-to-video shots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/cosmos-generated out
+          python pipeline/cosmos_generate.py \
+            --manifest ai-video/scenes.json \
+            --out public/cosmos-generated \
+            --resolution 720_16_9 \
+            --num-frames 189 \
+            --fps 24 \
+            --steps 35 \
+            --request-timeout 900
+
+      - name: Verify all source clips
+        shell: bash
+        run: |
+          set -euo pipefail
+          COUNT="$(find public/cosmos-generated -maxdepth 1 -type f -name 'scene-*.mp4' | wc -l | tr -d ' ')"
+          echo "COSMOS_CLIP_COUNT=$COUNT"
+          test "$COUNT" = "30"
+
+          for f in public/cosmos-generated/scene-*.mp4; do
+            VC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$f" | tr -d '\r\n,')"
+            W="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$f" | tr -d '\r\n,')"
+            H="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$f" | tr -d '\r\n,')"
+            D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" | tr -d '\r\n,')"
+            B="$(stat -c%s "$f")"
+            echo "$(basename "$f") codec=$VC size=${W}x${H} duration=$D bytes=$B"
+            test "$VC" = "h264"
+            test "$W" = "1280"
+            test "$H" = "720"
+            test "$B" -gt 300000
+            python -c 'import sys; d=float(sys.argv[1]); assert 7.0 <= d <= 8.5, d' "$D"
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install Remotion dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Render final 1080p music video
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          npx remotion render src/index.ts CosmosClip out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4 \
+            --codec=h264 \
+            --audio-codec=aac \
+            --audio-bitrate=320k \
+            --crf=18 \
+            --concurrency=2 \
+            --overwrite
+
+      - name: Validate final MP4
+        shell: bash
+        run: |
+          set -euo pipefail
+          F="out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4"
+          test -s "$F"
+          VC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "$F" | tr -d '\r\n,')"
+          AC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$F" | tr -d '\r\n,')"
+          W="$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 "$F" | tr -d '\r\n,')"
+          H="$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$F" | tr -d '\r\n,')"
+          D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$F" | tr -d '\r\n,')"
+          B="$(stat -c%s "$F")"
+          echo "video=$VC audio=$AC size=${W}x${H} duration=$D bytes=$B"
+          test "$VC" = "h264"
+          test "$AC" = "aac"
+          test "$W" = "1920"
+          test "$H" = "1080"
+          test "$B" -gt 20000000
+          python -c 'import sys; d=float(sys.argv[1]); assert 226.5 <= d <= 227.8, d' "$D"
+
+      - name: Create visual review sheet
+        shell: bash
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -i out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4 \
+            -vf "fps=1/15,scale=480:-1,tile=4x4:padding=4:margin=4" \
+            -frames:v 1 out/Son_Yaprak_COSMOS3_review.jpg
+
+      - name: Upload final and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Son-Yaprak-COSMOS3-FINAL
+          path: |
+            out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4
+            out/Son_Yaprak_COSMOS3_review.jpg
+            out/cosmos-generation-report.json
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Publish GitHub Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="son-yaprak-cosmos3-v1"
+          F="out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$F" --clobber
+          else
+            gh release create "$TAG" "$F" \
+              --target "son-yaprak-cosmos3" \
+              --title "Son Yaprak — NVIDIA Cosmos 3 Final 1080p" \
+              --notes "NVIDIA Cosmos3-Nano gerçek hareketli sahneler + Remotion final. Söz: M. Murat Güvenoğlu | Müzik: Suno.com"
+          fi
