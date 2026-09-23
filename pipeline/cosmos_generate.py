@@ -10,8 +10,8 @@ from typing import Any
 
 import requests
 
-ENDPOINT = "https://ai.api.nvidia.com/v1/cosmos/nvidia/cosmos3-nano"
-POLL_BASE = "https://api.nvcf.nvidia.com/v2/nvcf/exec/status"
+ENDPOINT = "https://ai.api.nvidia.com/v1/genai/nvidia/cosmos3-nano"
+POLL_BASE = "https://api.nvcf.nvidia.com/v2/nvcf/pexec/status"
 
 STYLE = (
     "Photorealistic cinematic drama. Preserve the same person, clothing, age, body proportions, "
@@ -102,13 +102,19 @@ def generate_one(
 
     raw_path = out_dir / f"{sid}-cosmos-raw.mp4"
     payload = {
-        "model_mode": "image2video",
         "prompt": scene["prompt"] + " " + STYLE,
-        "input_reference": image_data_uri(source),
+        "image": image_data_uri(source),
+        "negative_prompt": (
+            "ugly, static with no motion, motion blur, oversaturated, shaky, low resolution, "
+            "grainy, pixelated, poorly lit, underexposed, overexposed, choppy, jerky motion, "
+            "artifacting, unnatural transitions, jump cuts, visual noise, flicker, distorted hands, "
+            "extra limbs, duplicate people, face morphing, text, subtitles, logo, watermark"
+        ),
         "resolution": resolution,
-        "num_frames": num_frames,
-        "num_inference_steps": steps,
-        "fps": fps,
+        "num_output_frames": num_frames,
+        "fps": float(fps),
+        "steps": steps,
+        "guidance_scale": 4.0,
         "seed": int(scene["seed"]),
     }
     headers = {
@@ -128,17 +134,12 @@ def generate_one(
                 time.sleep(wait)
                 continue
             result = extract_result(r, headers, request_timeout_s)
-            b64_video = result.get("b64_video")
+            b64_video = result.get("b64_video") or result.get("video") or result.get("output")
             if not b64_video:
-                ref = result.get("responseReference") or result.get("response_reference")
-                if ref:
-                    dl = requests.get(ref, timeout=180)
-                    dl.raise_for_status()
-                    raw_path.write_bytes(dl.content)
-                else:
-                    raise RuntimeError("No b64_video/responseReference in response: " + json.dumps(result)[:1500])
-            else:
-                raw_path.write_bytes(base64.b64decode(b64_video, validate=True))
+                raise RuntimeError("No b64_video in response: " + json.dumps(result)[:1500])
+            if b64_video.startswith("data:"):
+                b64_video = b64_video.split(",", 1)[-1]
+            raw_path.write_bytes(base64.b64decode(b64_video))
 
             if raw_path.stat().st_size < 100_000:
                 raise RuntimeError(f"Raw video too small: {raw_path.stat().st_size} bytes")
