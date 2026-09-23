@@ -27,7 +27,7 @@ jobs:
           CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
           echo "::add-mask::$CLEAN_TOKEN"
           export KAGGLE_API_TOKEN="$CLEAN_TOKEN"
-          python -m pip install -q -U "git+https://github.com/Kaggle/kaggle-cli.git"
+          python -m pip install -q -U kaggle
           USERNAME="$(python - <<'PY'
           import os,kaggle
           api=kaggle.api
