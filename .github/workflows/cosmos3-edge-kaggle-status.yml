@@ -6,6 +6,7 @@ on:
       - son-yaprak-cosmos3
     paths:
       - ".github/workflows/cosmos3-edge-kaggle-status.yml"
+      - ".github/cosmos-edge-status-trigger"
   workflow_dispatch:
 
 permissions:
