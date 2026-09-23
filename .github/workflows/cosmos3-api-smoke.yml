@@ -1,0 +1,112 @@
+name: Cosmos3 API Schema Smoke
+
+on:
+  push:
+    branches:
+      - son-yaprak-cosmos3
+    paths:
+      - ".github/workflows/cosmos3-api-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: son-yaprak-cosmos3
+
+      - name: Prepare one reference image
+        run: |
+          unzip -o assets/son-yaprak-assets.zip public/images/01-window.jpg
+          test -s public/images/01-window.jpg
+
+      - name: Call Cosmos3-Nano image2video with 5 frames
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u - <<'PY'
+          import base64, json, os, time
+          from pathlib import Path
+          import urllib.request, urllib.error
+
+          endpoint="https://ai.api.nvidia.com/v1/cosmos/nvidia/cosmos3-nano"
+          key=os.environ["NVIDIA_API_KEY"].strip()
+          img=base64.b64encode(Path("public/images/01-window.jpg").read_bytes()).decode("ascii")
+          payload={
+            "model_mode":"image2video",
+            "prompt":"Photorealistic rainy apartment window at night. Raindrops move naturally down the glass, distant traffic reflections move, slow cinematic push-in, realistic continuous motion, no text, no logo.",
+            "input_reference":"data:image/jpeg;base64,"+img,
+            "resolution":"720_16_9",
+            "num_frames":5,
+            "num_inference_steps":10,
+            "fps":24,
+            "seed":1101,
+          }
+          headers={
+            "Authorization":"Bearer "+key,
+            "Accept":"application/json",
+            "Content-Type":"application/json",
+          }
+
+          def request(url, method="GET", body=None):
+            req=urllib.request.Request(url, data=body, headers=headers, method=method)
+            try:
+              with urllib.request.urlopen(req, timeout=180) as r:
+                return r.status, dict(r.headers), r.read()
+            except urllib.error.HTTPError as e:
+              return e.code, dict(e.headers), e.read()
+
+          status,h,b=request(endpoint,"POST",json.dumps(payload).encode())
+          print("POST_HTTP=",status)
+          print("POST_BODY_PREFIX=",b[:1000].decode("utf-8","replace"))
+          if status not in (200,202):
+            raise SystemExit(10)
+
+          if status==202:
+            obj=json.loads(b or b"{}")
+            reqid=obj.get("reqId") or obj.get("request_id") or obj.get("requestId") or h.get("NVCF-REQID") or h.get("nvcf-reqid")
+            print("REQID_PRESENT=",bool(reqid))
+            if not reqid:
+              raise SystemExit(11)
+            for i in range(120):
+              time.sleep(5)
+              status,h,b=request("https://api.nvcf.nvidia.com/v2/nvcf/exec/status/"+reqid)
+              print("POLL",i+1,"HTTP",status)
+              if status==202:
+                continue
+              if status!=200:
+                print(b[:2000].decode("utf-8","replace"))
+                raise SystemExit(12)
+              break
+            else:
+              raise SystemExit(13)
+
+          obj=json.loads(b)
+          v=obj.get("b64_video")
+          ref=obj.get("responseReference") or obj.get("response_reference")
+          print("B64_VIDEO_PRESENT=",bool(v))
+          print("RESPONSE_REFERENCE_PRESENT=",bool(ref))
+          if v:
+            raw=base64.b64decode(v)
+            Path("/tmp/cosmos-smoke.mp4").write_bytes(raw)
+          elif ref:
+            with urllib.request.urlopen(ref,timeout=180) as r:
+              Path("/tmp/cosmos-smoke.mp4").write_bytes(r.read())
+          else:
+            print("FINAL_BODY=",json.dumps(obj)[:3000])
+            raise SystemExit(14)
+
+          n=Path("/tmp/cosmos-smoke.mp4").stat().st_size
+          print("MP4_BYTES=",n)
+          if n<1000:
+            raise SystemExit(15)
+          print("COSMOS_API_SCHEMA_SMOKE=PASS")
+          PY
