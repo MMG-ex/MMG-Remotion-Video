@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: son-yaprak-cosmos3
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   generate-render:
@@ -27,6 +27,7 @@ jobs:
 
     env:
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      WORK_TAG: son-yaprak-cosmos3-work
 
     steps:
       - name: Checkout Cosmos branch
@@ -62,19 +63,81 @@ jobs:
           test -s public/images/01-window.jpg
           test -s public/images/12-dawn.jpg
 
-      - name: Generate 30 Cosmos3-Nano image-to-video shots
+      - name: Restore resumable Cosmos scene cache
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p public/cosmos-generated out
-          python pipeline/cosmos_generate.py \
-            --manifest ai-video/scenes.json \
-            --out public/cosmos-generated \
-            --resolution 720_16_9 \
-            --num-frames 189 \
-            --fps 24 \
-            --steps 35 \
-            --request-timeout 900
+          if ! gh release view "$WORK_TAG" >/dev/null 2>&1; then
+            gh release create "$WORK_TAG" \
+              --target "son-yaprak-cosmos3" \
+              --title "Son Yaprak — Cosmos 3 Work Clips" \
+              --notes "Resumable intermediate Cosmos3-Nano scene files. Final video is published separately." \
+              --prerelease
+          fi
+          gh release download "$WORK_TAG" \
+            --pattern 'scene-*.mp4' \
+            --dir public/cosmos-generated \
+            --clobber || true
+          echo "RESTORED=$(find public/cosmos-generated -maxdepth 1 -type f -name 'scene-*.mp4' | wc -l | tr -d ' ')"
+
+      - name: Generate and persist 30 Cosmos3-Nano shots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY' > /tmp/cosmos-scene-ids.txt
+          import json
+          from pathlib import Path
+          manifest=json.loads(Path("ai-video/scenes.json").read_text(encoding="utf-8"))
+          for scene in manifest["scenes"]:
+              print(scene["id"])
+          PY
+
+          while IFS= read -r SID; do
+            F="public/cosmos-generated/${SID}.mp4"
+            VALID=0
+
+            if [ -s "$F" ] && [ "$(stat -c%s "$F")" -gt 300000 ]; then
+              D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$F" 2>/dev/null | tr -d '\r\n,' || true)"
+              if python -c 'import sys; d=float(sys.argv[1]); assert 7.0 <= d <= 8.5' "$D" >/dev/null 2>&1; then
+                VALID=1
+              fi
+            fi
+
+            if [ "$VALID" = "1" ]; then
+              echo "SKIP persisted valid clip: $SID"
+              continue
+            fi
+
+            rm -f "$F"
+            python pipeline/cosmos_generate.py \
+              --manifest ai-video/scenes.json \
+              --out public/cosmos-generated \
+              --resolution 720_16_9 \
+              --num-frames 189 \
+              --fps 24 \
+              --steps 35 \
+              --request-timeout 900 \
+              --scene-id "$SID" \
+              --report "out/report-${SID}.json"
+
+            test -s "$F"
+            UPLOADED=0
+            for TRY in 1 2 3; do
+              if gh release upload "$WORK_TAG" "$F" --clobber; then
+                UPLOADED=1
+                break
+              fi
+              sleep $((TRY * 15))
+            done
+            test "$UPLOADED" = "1"
+            echo "PERSISTED=$SID"
+          done < /tmp/cosmos-scene-ids.txt
 
       - name: Verify all source clips
         shell: bash
@@ -160,7 +223,7 @@ jobs:
           path: |
             out/Son_Yaprak_COSMOS3_FINAL_1080p.mp4
             out/Son_Yaprak_COSMOS3_review.jpg
-            out/cosmos-generation-report.json
+            out/report-*.json
           if-no-files-found: warn
           retention-days: 14
           compression-level: 0
