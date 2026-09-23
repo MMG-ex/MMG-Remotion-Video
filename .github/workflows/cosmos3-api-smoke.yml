@@ -37,17 +37,18 @@ jobs:
           from pathlib import Path
           import urllib.request, urllib.error
 
-          endpoint="https://ai.api.nvidia.com/v1/cosmos/nvidia/cosmos3-nano"
+          endpoint="https://ai.api.nvidia.com/v1/genai/nvidia/cosmos3-nano"
           key=os.environ["NVIDIA_API_KEY"].strip()
           img=base64.b64encode(Path("public/images/01-window.jpg").read_bytes()).decode("ascii")
           payload={
-            "model_mode":"image2video",
             "prompt":"Photorealistic rainy apartment window at night. Raindrops move naturally down the glass, distant traffic reflections move, slow cinematic push-in, realistic continuous motion, no text, no logo.",
-            "input_reference":"data:image/jpeg;base64,"+img,
+            "image":"data:image/jpeg;base64,"+img,
+            "negative_prompt":"static, no motion, blurry, distorted, low quality, flicker, text, logo",
             "resolution":"720_16_9",
-            "num_frames":5,
-            "num_inference_steps":10,
-            "fps":24,
+            "num_output_frames":5,
+            "fps":24.0,
+            "steps":10,
+            "guidance_scale":4.0,
             "seed":1101,
           }
           headers={
@@ -78,7 +79,7 @@ jobs:
               raise SystemExit(11)
             for i in range(120):
               time.sleep(5)
-              status,h,b=request("https://api.nvcf.nvidia.com/v2/nvcf/exec/status/"+reqid)
+              status,h,b=request("https://api.nvcf.nvidia.com/v2/nvcf/pexec/status/"+reqid)
               print("POLL",i+1,"HTTP",status)
               if status==202:
                 continue
