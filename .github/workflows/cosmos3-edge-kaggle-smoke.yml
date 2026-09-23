@@ -1,0 +1,270 @@
+name: Cosmos3 Edge Kaggle GPU Smoke
+
+on:
+  push:
+    branches:
+      - son-yaprak-cosmos3
+    paths:
+      - ".github/workflows/cosmos3-edge-kaggle-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+      KERNEL_SLUG: son-yaprak-cosmos3-edge-smoke
+
+    steps:
+      - name: Checkout Cosmos branch
+        uses: actions/checkout@v4
+        with:
+          ref: son-yaprak-cosmos3
+          fetch-depth: 1
+
+      - name: Normalize Kaggle token
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${KAGGLE_API_TOKEN:-}" || { echo "::error::KAGGLE_API_TOKEN eksik"; exit 2; }
+          CLEAN_TOKEN="$(printf '%s' "$KAGGLE_API_TOKEN" | tr -d '[:space:]')"
+          test -n "$CLEAN_TOKEN"
+          echo "::add-mask::$CLEAN_TOKEN"
+          echo "KAGGLE_API_TOKEN=$CLEAN_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Install Kaggle CLI and detect account
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q -U "git+https://github.com/Kaggle/kaggle-cli.git"
+          USERNAME="$(python - <<'PY'
+          import os, kaggle
+          api=kaggle.api
+          u=str((getattr(api,"config_values",{}) or {}).get("username","") or "").strip()
+          if not u:
+              u=str(api._introspect_token(os.environ["KAGGLE_API_TOKEN"]) or "").strip()
+          if not u:
+              raise SystemExit("Kaggle username bulunamadi")
+          print(u)
+          PY
+          )"
+          echo "KAGGLE_USERNAME=$USERNAME" >> "$GITHUB_ENV"
+          echo "KAGGLE_ACCOUNT_OK"
+
+      - name: Build Cosmos3-Edge smoke kernel
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/cosmos-edge-smoke
+          mkdir -p /tmp/cosmos-edge-smoke /tmp/assets
+          unzip -jo assets/son-yaprak-assets.zip public/images/01-window.jpg -d /tmp/assets
+          test -s /tmp/assets/01-window.jpg
+
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+
+          image_b64=base64.b64encode(Path("/tmp/assets/01-window.jpg").read_bytes()).decode("ascii")
+          src=r'''import base64
+          import gc
+          import json
+          import os
+          import subprocess
+          import sys
+          import time
+          from pathlib import Path
+
+          print("=== COSMOS3 EDGE / KAGGLE GPU SMOKE ===", flush=True)
+
+          subprocess.check_call([
+              sys.executable, "-m", "pip", "install", "-q", "-U",
+              "git+https://github.com/huggingface/diffusers.git",
+              "accelerate>=1.2.0", "transformers>=4.57.0", "safetensors",
+              "imageio", "imageio-ffmpeg", "av", "sentencepiece", "huggingface_hub"
+          ])
+
+          import torch
+          print("TORCH", torch.__version__, flush=True)
+          print("CUDA", torch.cuda.is_available(), flush=True)
+          print("DEVICE_COUNT", torch.cuda.device_count(), flush=True)
+          if not torch.cuda.is_available():
+              raise RuntimeError("Kaggle GPU aktif degil")
+          print("GPU0", torch.cuda.get_device_name(0), flush=True)
+          print("VRAM_GB", round(torch.cuda.get_device_properties(0).total_memory/1024**3,2), flush=True)
+          print("CAPABILITY", torch.cuda.get_device_capability(0), flush=True)
+          print("BF16_SUPPORTED", torch.cuda.is_bf16_supported(), flush=True)
+
+          from diffusers import Cosmos3OmniPipeline
+          from diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
+          from diffusers.utils import export_to_video, load_image
+
+          work=Path("/kaggle/working")
+          image_path=work/"son-yaprak-window.jpg"
+          image_path.write_bytes(base64.b64decode("__IMAGE_B64__"))
+
+          dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+          print("LOAD_DTYPE", dtype, flush=True)
+          t0=time.time()
+          pipe=Cosmos3OmniPipeline.from_pretrained(
+              "nvidia/Cosmos3-Edge",
+              torch_dtype=dtype,
+              enable_safety_checker=False,
+              low_cpu_mem_usage=True,
+          )
+          print("MODEL_LOADED_SECONDS", round(time.time()-t0,1), flush=True)
+
+          try:
+              pipe.to("cuda")
+              placement="cuda"
+          except torch.cuda.OutOfMemoryError:
+              print("DIRECT_CUDA_OOM -> MODEL_CPU_OFFLOAD", flush=True)
+              torch.cuda.empty_cache()
+              pipe.enable_model_cpu_offload()
+              placement="cpu_offload"
+
+          pipe.scheduler=UniPCMultistepScheduler.from_config(
+              pipe.scheduler.config,
+              flow_shift=3.0,
+              use_karras_sigmas=False,
+          )
+
+          prompt={
+              "scene": "A lonely adult stands inside a dim apartment at night, seen from behind near a rain-covered window.",
+              "motion": "Raindrops continuously slide down the glass, distant car lights drift across wet reflections, the person's shoulders rise and fall subtly with breathing, curtain fabric moves gently.",
+              "camera": "Slow cinematic push-in from behind, stable 35mm lens, shallow depth of field.",
+              "style": "Photorealistic melancholic Turkish music video, restrained acting, realistic physics, natural low-key lighting, face never visible.",
+          }
+          negative={
+              "avoid": "static image, no motion, flicker, morphing, distorted anatomy, extra limbs, duplicate person, visible face, text, subtitle, logo, watermark, oversaturation, jerky camera"
+          }
+
+          gen=torch.Generator(device="cuda").manual_seed(1101)
+          print("PLACEMENT", placement, flush=True)
+          print("GENERATE_START", flush=True)
+          t1=time.time()
+          result=pipe(
+              prompt=json.dumps(prompt, ensure_ascii=False),
+              negative_prompt=json.dumps(negative, ensure_ascii=False),
+              image=load_image(str(image_path)),
+              num_frames=50,
+              height=480,
+              width=832,
+              fps=24.0,
+              num_inference_steps=20,
+              guidance_scale=5.0,
+              generator=gen,
+              add_resolution_template=False,
+              add_duration_template=False,
+              enable_safety_check=False,
+          )
+          print("GENERATE_SECONDS", round(time.time()-t1,1), flush=True)
+
+          out=work/"cosmos3-edge-smoke.mp4"
+          export_to_video(result.video, str(out), fps=24, macro_block_size=1)
+          if not out.exists() or out.stat().st_size < 100000:
+              raise RuntimeError(f"MP4 gecersiz: {out.stat().st_size if out.exists() else 0}")
+
+          report={
+              "status":"PASS",
+              "model":"nvidia/Cosmos3-Edge",
+              "gpu":torch.cuda.get_device_name(0),
+              "dtype":str(dtype),
+              "placement":placement,
+              "bytes":out.stat().st_size,
+          }
+          (work/"cosmos3-edge-smoke-report.json").write_text(
+              json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8"
+          )
+          print(json.dumps(report,ensure_ascii=False), flush=True)
+          print("COSMOS3_EDGE_SMOKE=PASS", flush=True)
+          '''
+          src=src.replace("__IMAGE_B64__", image_b64)
+          Path("/tmp/cosmos-edge-smoke/kernel.py").write_text(src,encoding="utf-8")
+          PY
+
+          cat > /tmp/cosmos-edge-smoke/kernel-metadata.json <<JSON
+          {
+            "id": "${KAGGLE_USERNAME}/${KERNEL_SLUG}",
+            "title": "Son Yaprak Cosmos3 Edge Smoke",
+            "code_file": "kernel.py",
+            "language": "python",
+            "kernel_type": "script",
+            "is_private": true,
+            "enable_gpu": true,
+            "enable_internet": true,
+            "machine_shape": "NvidiaTeslaT4",
+            "dataset_sources": [],
+            "competition_sources": [],
+            "kernel_sources": [],
+            "model_sources": []
+          }
+          JSON
+
+      - name: Submit Kaggle GPU smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          kaggle kernels push -p /tmp/cosmos-edge-smoke --accelerator NvidiaTeslaT4
+
+      - name: Wait for Kaggle result
+        shell: bash
+        run: |
+          set -euo pipefail
+          KERNEL="${KAGGLE_USERNAME}/${KERNEL_SLUG}"
+          for I in $(seq 1 105); do
+            STATUS="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "POLL_${I}: $STATUS"
+            LOW="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
+            if echo "$LOW" | grep -Eq "complete|success"; then
+              echo "KAGGLE_DONE=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if echo "$LOW" | grep -Eq "error|failed"; then
+              echo "=== KAGGLE ERROR LOG ==="
+              kaggle kernels logs "$KERNEL" || true
+              exit 20
+            fi
+            sleep 30
+          done
+          echo "=== KAGGLE TIMEOUT LOG ==="
+          kaggle kernels logs "$KERNEL" || true
+          exit 21
+
+      - name: Download and validate smoke MP4
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/cosmos-edge-output
+          mkdir -p /tmp/cosmos-edge-output
+          kaggle kernels output "${KAGGLE_USERNAME}/${KERNEL_SLUG}" -p /tmp/cosmos-edge-output -o
+          find /tmp/cosmos-edge-output -maxdepth 2 -type f -printf '%p %s bytes\n'
+          F="$(find /tmp/cosmos-edge-output -type f -name 'cosmos3-edge-smoke.mp4' | head -n 1)"
+          test -n "$F"
+          test -s "$F"
+          test "$(stat -c%s "$F")" -gt 100000
+          python - <<'PY' "$F"
+          import subprocess,sys
+          f=sys.argv[1]
+          p=subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0","-show_entries","stream=codec_name,width,height","-of","csv=p=0",f],text=True).strip()
+          d=float(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","csv=p=0",f],text=True).strip())
+          print("FFPROBE",p,"duration",d)
+          assert 1.5 <= d <= 3.0
+          PY
+          cp "$F" /tmp/cosmos3-edge-smoke.mp4
+          R="$(find /tmp/cosmos-edge-output -type f -name 'cosmos3-edge-smoke-report.json' | head -n 1 || true)"
+          if [ -n "$R" ]; then cp "$R" /tmp/cosmos3-edge-smoke-report.json; fi
+
+      - name: Upload smoke proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cosmos3-Edge-Kaggle-Smoke
+          path: |
+            /tmp/cosmos3-edge-smoke.mp4
+            /tmp/cosmos3-edge-smoke-report.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
