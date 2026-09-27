@@ -12,6 +12,12 @@ on:
         required: false
         default: "MMG-YORE-Orchestrator-Final"
         type: string
+  pull_request:
+    paths:
+      - "src/Orchestrator/**"
+      - "src/Root.tsx"
+      - ".github/workflows/render-orchestrator-final.yml"
+      - "orchestrator/**"
 
 permissions:
   contents: read
@@ -25,6 +31,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve render name
+        id: meta
+        env:
+          REQUESTED_NAME: ${{ inputs.output_name }}
+        run: |
+          set -euo pipefail
+          SAFE_NAME="${REQUESTED_NAME:-MMG-YORE-Orchestrator-Final}"
+          echo "safe_name=${SAFE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Node.js
         uses: actions/setup-node@v4
@@ -45,8 +60,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/orchestrator out
-          ffmpeg -hide_banner -loglevel error -y             -f lavfi -i "testsrc2=size=1080x1920:rate=30"             -t 4 -c:v libx264 -pix_fmt yuv420p             public/orchestrator/smoke-scene.mp4
-          ffmpeg -hide_banner -loglevel error -y             -f lavfi -i "sine=frequency=440:sample_rate=48000"             -t 4 -c:a pcm_s16le             public/orchestrator/smoke-audio.wav
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=1080x1920:rate=30" \
+            -t 4 -c:v libx264 -pix_fmt yuv420p \
+            public/orchestrator/smoke-scene.mp4
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "sine=frequency=440:sample_rate=48000" \
+            -t 4 -c:a pcm_s16le \
+            public/orchestrator/smoke-audio.wav
 
       - name: Prepare input props
         env:
@@ -66,21 +87,29 @@ jobs:
 
       - name: Render OrchestratorFinal
         env:
-          OUTPUT_NAME: ${{ inputs.output_name }}
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
         run: |
           set -euo pipefail
-          SAFE_NAME="${OUTPUT_NAME:-MMG-YORE-Orchestrator-Final}"
-          npx remotion render src/index.ts OrchestratorFinal "out/${SAFE_NAME}.mp4"             --codec=h264             --audio-codec=aac             --audio-bitrate=320k             --crf=19             --concurrency=2             --overwrite             ${PROPS_ARG}
+          npx remotion render src/index.ts OrchestratorFinal "out/${SAFE_NAME}.mp4" \
+            --codec=h264 \
+            --audio-codec=aac \
+            --audio-bitrate=320k \
+            --crf=19 \
+            --concurrency=2 \
+            --overwrite \
+            ${PROPS_ARG}
 
       - name: QC with ffprobe
         env:
-          OUTPUT_NAME: ${{ inputs.output_name }}
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
         run: |
           set -euo pipefail
-          SAFE_NAME="${OUTPUT_NAME:-MMG-YORE-Orchestrator-Final}"
           FILE="out/${SAFE_NAME}.mp4"
           test -s "${FILE}"
-          ffprobe -v error -show_entries stream=codec_type,codec_name,width,height -show_entries format=duration             -of json "${FILE}" | tee out/orchestrator-qc.json
+          ffprobe -v error \
+            -show_entries stream=codec_type,codec_name,width,height \
+            -show_entries format=duration \
+            -of json "${FILE}" | tee out/orchestrator-qc.json
           python - <<'PY'
           import json
           p=json.load(open("out/orchestrator-qc.json","r",encoding="utf-8"))
@@ -98,9 +127,9 @@ jobs:
       - name: Upload final MP4
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.output_name }}
+          name: ${{ steps.meta.outputs.safe_name }}
           path: |
-            out/${{ inputs.output_name }}.mp4
+            out/${{ steps.meta.outputs.safe_name }}.mp4
             out/orchestrator-qc.json
           if-no-files-found: error
           retention-days: 7
