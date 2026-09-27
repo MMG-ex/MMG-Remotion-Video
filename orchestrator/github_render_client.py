@@ -38,6 +38,39 @@ def api(token, method, url, payload=None, raw=False):
         body = e.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"GITHUB_API_{e.code}: {method} {url} :: {body[:1200]}") from e
 
+def download_redirect(token, url):
+    """Download GitHub redirect-backed bytes without leaking Authorization to blob storage."""
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": API_VERSION,
+        "User-Agent": "MMG-YORE-Orchestrator/1.0",
+    }
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    opener = urllib.request.build_opener(NoRedirect)
+    location = None
+    try:
+        with opener.open(req, timeout=90) as r:
+            return r.read()
+    except urllib.error.HTTPError as e:
+        if e.code in (301, 302, 303, 307, 308):
+            location = e.headers.get("Location")
+        else:
+            body = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"GITHUB_DOWNLOAD_{e.code}: {url} :: {body[:1200]}") from e
+
+    if not location:
+        raise RuntimeError("GITHUB_DOWNLOAD_REDIRECT_MISSING")
+
+    # Signed blob URL must be requested WITHOUT the GitHub Authorization header.
+    req2 = urllib.request.Request(location, headers={"User-Agent": "MMG-YORE-Orchestrator/1.0"}, method="GET")
+    with urllib.request.urlopen(req2, timeout=180) as r:
+        return r.read()
+
 def classify_failure(token, repo, run_id, out_dir):
     jobs = api(token, "GET", f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100")
     failed_steps = []
@@ -57,7 +90,7 @@ def classify_failure(token, repo, run_id, out_dir):
         category = "AUDIO_PATH"
 
     try:
-        log_bytes = api(token, "GET", f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/logs", raw=True)
+        log_bytes = download_redirect(token, f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/logs")
         log_path = out_dir / f"run-{run_id}-logs.zip"
         log_path.write_bytes(log_bytes)
         if zipfile.is_zipfile(io.BytesIO(log_bytes)):
@@ -201,7 +234,7 @@ def main():
     print(f"[PASS] ARTIFACT_FOUND id={artifact['id']} size={artifact.get('size_in_bytes')}")
 
     print("[4/6] ARTIFACT DOWNLOAD")
-    zip_bytes = api(token, "GET", f"https://api.github.com/repos/{args.repo}/actions/artifacts/{artifact['id']}/zip", raw=True)
+    zip_bytes = download_redirect(token, f"https://api.github.com/repos/{args.repo}/actions/artifacts/{artifact['id']}/zip")
     zip_path = out_dir / f"{output_name}.zip"
     zip_path.write_bytes(zip_bytes)
     extract_dir = out_dir / output_name
