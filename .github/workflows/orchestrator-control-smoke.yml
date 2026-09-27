@@ -1,0 +1,48 @@
+name: MMG Orchestrator Control Smoke
+
+on:
+  pull_request:
+    paths:
+      - "orchestrator/github_render_client.py"
+      - ".github/workflows/orchestrator-control-smoke.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-poll-download-qc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout controller candidate
+        uses: actions/checkout@v4
+
+      - name: Python syntax gate
+        run: python -m py_compile orchestrator/github_render_client.py
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Dispatch render, poll exact run, download artifact, QC
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python orchestrator/github_render_client.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow render-orchestrator-final.yml \
+            --ref main \
+            --output-name "MMG-YORE-Orchestrator-AUTO-${GITHUB_RUN_ID}" \
+            --out-dir orchestrator-control-output \
+            --timeout 900 \
+            --poll 3
+
+      - name: Upload controller evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: MMG-Orchestrator-Control-Evidence
+          path: orchestrator-control-output/
+          if-no-files-found: error
+          retention-days: 7
