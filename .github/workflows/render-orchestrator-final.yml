@@ -1,0 +1,136 @@
+name: MMG Orchestrator Final Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      props_json:
+        description: "Optional OrchestratorFinal props JSON. Empty = smoke defaults."
+        required: false
+        type: string
+      output_name:
+        description: "Artifact MP4 base name"
+        required: false
+        default: "MMG-YORE-Orchestrator-Final"
+        type: string
+  pull_request:
+    paths:
+      - "src/Orchestrator/**"
+      - "src/Root.tsx"
+      - ".github/workflows/render-orchestrator-final.yml"
+      - "orchestrator/**"
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: OrchestratorFinal H264 AAC
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve render name
+        id: meta
+        env:
+          REQUESTED_NAME: ${{ inputs.output_name }}
+        run: |
+          set -euo pipefail
+          SAFE_NAME="${REQUESTED_NAME:-MMG-YORE-Orchestrator-Final}"
+          echo "safe_name=${SAFE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Prepare deterministic smoke assets
+        run: |
+          set -euo pipefail
+          mkdir -p public/orchestrator out
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=1080x1920:rate=30" \
+            -t 4 -c:v libx264 -pix_fmt yuv420p \
+            public/orchestrator/smoke-scene.mp4
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "sine=frequency=440:sample_rate=48000" \
+            -t 4 -c:a pcm_s16le \
+            public/orchestrator/smoke-audio.wav
+
+      - name: Prepare input props
+        env:
+          PROPS_JSON: ${{ inputs.props_json }}
+        run: |
+          set -euo pipefail
+          if [ -n "${PROPS_JSON}" ]; then
+            printf '%s' "${PROPS_JSON}" > /tmp/orchestrator-props.json
+            python -m json.tool /tmp/orchestrator-props.json >/dev/null
+            echo "PROPS_ARG=--props=/tmp/orchestrator-props.json" >> "$GITHUB_ENV"
+          else
+            echo "PROPS_ARG=" >> "$GITHUB_ENV"
+          fi
+
+      - name: TypeScript gate
+        run: npx tsc --noEmit
+
+      - name: Render OrchestratorFinal
+        env:
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
+        run: |
+          set -euo pipefail
+          npx remotion render src/index.ts OrchestratorFinal "out/${SAFE_NAME}.mp4" \
+            --codec=h264 \
+            --audio-codec=aac \
+            --audio-bitrate=320k \
+            --crf=19 \
+            --concurrency=2 \
+            --overwrite \
+            ${PROPS_ARG}
+
+      - name: QC with ffprobe
+        env:
+          SAFE_NAME: ${{ steps.meta.outputs.safe_name }}
+        run: |
+          set -euo pipefail
+          FILE="out/${SAFE_NAME}.mp4"
+          test -s "${FILE}"
+          ffprobe -v error \
+            -show_entries stream=codec_type,codec_name,width,height \
+            -show_entries format=duration \
+            -of json "${FILE}" | tee out/orchestrator-qc.json
+          python - <<'PY'
+          import json
+          p=json.load(open("out/orchestrator-qc.json","r",encoding="utf-8"))
+          streams=p.get("streams",[])
+          v=next((s for s in streams if s.get("codec_type")=="video"),None)
+          a=next((s for s in streams if s.get("codec_type")=="audio"),None)
+          dur=float(p.get("format",{}).get("duration",0))
+          assert v and v.get("codec_name")=="h264", v
+          assert a and a.get("codec_name")=="aac", a
+          assert int(v.get("width",0))==1080 and int(v.get("height",0))==1920, v
+          assert dur >= 3.8, dur
+          print("ORCHESTRATOR_FINAL_QC=PASS")
+          PY
+
+      - name: Upload final MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.safe_name }}
+          path: |
+            out/${{ steps.meta.outputs.safe_name }}.mp4
+            out/orchestrator-qc.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

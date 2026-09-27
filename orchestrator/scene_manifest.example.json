@@ -1,0 +1,20 @@
+{
+  "manifest": {
+    "fps": 30,
+    "width": 1080,
+    "height": 1920,
+    "backgroundColor": "#050505",
+    "scenes": [
+      {
+        "scene": "scene-01",
+        "start": 0,
+        "duration": 4,
+        "video_path": "orchestrator/smoke-scene.mp4",
+        "audio_path": "orchestrator/smoke-audio.wav",
+        "caption": "REMOTION FINALIZER",
+        "transition": "fade",
+        "title": "MMG VIDEO ORCHESTRATOR"
+      }
+    ]
+  }
+}
