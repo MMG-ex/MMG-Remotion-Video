@@ -1,0 +1,43 @@
+{
+  "status": "batch-finished",
+  "model": "zai-org/CogVideoX-2b",
+  "batch": [
+    "scene-026",
+    "scene-027",
+    "scene-028",
+    "scene-029",
+    "scene-030"
+  ],
+  "results": [
+    {
+      "id": "scene-026",
+      "status": "ok",
+      "file": "scene-026.mp4",
+      "seed": 1704
+    },
+    {
+      "id": "scene-027",
+      "status": "ok",
+      "file": "scene-027.mp4",
+      "seed": 1803
+    },
+    {
+      "id": "scene-028",
+      "status": "ok",
+      "file": "scene-028.mp4",
+      "seed": 2201
+    },
+    {
+      "id": "scene-029",
+      "status": "ok",
+      "file": "scene-029.mp4",
+      "seed": 2202
+    },
+    {
+      "id": "scene-030",
+      "status": "ok",
+      "file": "scene-030.mp4",
+      "seed": 2203
+    }
+  ]
+}
